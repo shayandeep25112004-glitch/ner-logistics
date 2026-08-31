@@ -158,46 +158,78 @@ async function loadShipments() {
 
 /* ------------------------------------------------------------- route ---- */
 async function planRoute() {
-  $("#routes").innerHTML = '<div class="hint">Planning&hellip;</div>';
-  const body = {
-    lat1: origin[0], lon1: origin[1], lat2: destination[0], lon2: destination[1],
-    alternatives: 3, use_live_forecast: true,
-  };
-  const r = await fetch(`${API}/api/route`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-  });
-  if (!r.ok) { $("#routes").innerHTML = `<div class="hint">Error: ${(await r.text()).slice(0, 200)}</div>`; return; }
-  const d = await r.json();
+  $("#routes").innerHTML = '<div class="hint">Calculating risk-aware routes &amp; alternates&hellip;</div>';
+  try {
+    const body = {
+      lat1: origin[0], lon1: origin[1], lat2: destination[0], lon2: destination[1],
+      alternatives: 3, use_live_forecast: true,
+    };
+    const r = await fetch(`${API}/api/route`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const errText = await r.text();
+      $("#routes").innerHTML = `<div class="hint" style="color:#ff4d4f"><b>Route Error:</b> ${errText.slice(0, 200)}</div>`;
+      return;
+    }
+    const d = await r.json();
 
-  routeLayers.forEach((l) => map.removeLayer(l));
-  routeLayers = [];
-  d.routes.forEach((rt, i) => {
-    const colour = i === 0 ? "#7ad7ff" : i === 1 ? "#ffd166" : "#b39ddb";
-    const line = L.polyline(rt.polyline, { color: colour, weight: i === 0 ? 5 : 3.5,
-      opacity: 0.95, dashArray: i === 0 ? null : "6 6" }).addTo(map);
-    line.bindPopup(`<b>Route ${rt.rank}</b><br>${rt.distance_km} km · ` +
-      `${Math.round(rt.risk_adjusted_minutes)} min risk-adjusted<br>` +
-      `max segment risk ${(rt.max_segment_risk * 100).toFixed(0)}% (${rt.risk_level})` +
-      (rt.passes_blocked_segment ? "<br><b style='color:#ff4d4f'>passes a blocked segment</b>" : ""));
-    routeLayers.push(line);
-  });
-  if (d.routes.length) {
-    const b = L.latLngBounds(d.routes.flatMap((r) => r.polyline));
-    map.fitBounds(b, { padding: [30, 30] });
+    routeLayers.forEach((l) => map.removeLayer(l));
+    routeLayers = [];
+
+    if (!d.routes || !d.routes.length) {
+      $("#routes").innerHTML = `
+        <div class="hint" style="color:#f5a623;line-height:1.5;">
+          <b>No connected corridor found</b> between selected points.<br>
+          <span style="font-size:11px;color:var(--muted);">${d.diagnostics || "Try selecting points closer to major highways (NH-27, NH-6, NH-10)."}</span>
+        </div>`;
+      return;
+    }
+
+    d.routes.forEach((rt, i) => {
+      const colour = i === 0 ? "#7ad7ff" : i === 1 ? "#ffd166" : "#b39ddb";
+      const line = L.polyline(rt.polyline, { color: colour, weight: i === 0 ? 5 : 3.5,
+        opacity: 0.95, dashArray: i === 0 ? null : "6 6" }).addTo(map);
+      line.bindPopup(`<b>Route ${rt.rank}</b><br>${rt.distance_km} km · ` +
+        `${Math.round(rt.risk_adjusted_minutes)} min risk-adjusted<br>` +
+        `max segment risk ${(rt.max_segment_risk * 100).toFixed(0)}% (${rt.risk_level})` +
+        (rt.passes_blocked_segment ? "<br><b style='color:#ff4d4f'>passes a blocked segment</b>" : ""));
+      routeLayers.push(line);
+    });
+
+    if (d.routes.length && d.routes[0].polyline && d.routes[0].polyline.length) {
+      const b = L.latLngBounds(d.routes.flatMap((r) => r.polyline));
+      map.fitBounds(b, { padding: [40, 40] });
+    }
+
+    $("#routes").innerHTML = d.routes.map((rt, i) => `
+      <div class="route" style="background:${i === 0 ? 'rgba(77,163,255,0.06)' : 'transparent'}">
+        <div class="hd"><b>Route ${rt.rank} ${i === 0 ? '(Recommended)' : '(Alternate)'}</b>
+          <span class="badge b-${rt.risk_level === "clear" ? "open" : rt.risk_level === "at_risk" ? "risk" : "blocked"}">${rt.risk_level}</span></div>
+        <div class="mono">${rt.distance_km} km &middot; free flow ${Math.round(rt.free_flow_minutes)} min
+          &middot; risk-adjusted <b>${Math.round(rt.risk_adjusted_minutes)} min</b></div>
+        <div style="color:var(--muted);font-size:12px">max segment risk ${(rt.max_segment_risk * 100).toFixed(0)}%
+          ${rt.passes_blocked_segment ? " &middot; <b style='color:#ff4d4f'>blocked segment ahead</b>" : ""}</div>
+        <div style="color:var(--muted);font-size:12px">${rt.segments.slice(0, 6).map((s) => s.road).join(" → ")}${rt.segments.length > 6 ? " …" : ""}</div>
+      </div>`).join("") +
+      `<div class="hint">Computed in ${d.computed_in_ms} ms &middot; ${d.model_note}</div>`;
+  } catch (err) {
+    $("#routes").innerHTML = `<div class="hint" style="color:#ff4d4f">Network error: ${err.message}</div>`;
   }
-
-  $("#routes").innerHTML = d.routes.map((rt, i) => `
-    <div class="route">
-      <div class="hd"><b>Route ${rt.rank}</b>
-        <span class="badge b-${rt.risk_level === "clear" ? "open" : rt.risk_level === "at_risk" ? "risk" : "blocked"}">${rt.risk_level}</span></div>
-      <div class="mono">${rt.distance_km} km &middot; free flow ${Math.round(rt.free_flow_minutes)} min
-        &middot; risk-adjusted <b>${Math.round(rt.risk_adjusted_minutes)} min</b></div>
-      <div style="color:var(--muted);font-size:12px">max segment risk ${(rt.max_segment_risk * 100).toFixed(0)}%
-        ${rt.passes_blocked_segment ? " &middot; <b style='color:#ff4d4f'>blocked segment ahead</b>" : ""}</div>
-      <div style="color:var(--muted);font-size:12px">${rt.segments.slice(0, 6).map((s) => s.road).join(" → ")}${rt.segments.length > 6 ? " …" : ""}</div>
-    </div>`).join("") +
-    `<div class="hint">Computed in ${d.computed_in_ms} ms &middot; ${d.model_note}</div>`;
 }
+
+// Preset route helper
+window.setQuickRoute = function(lat1, lon1, lat2, lon2, name) {
+  clearRoute();
+  routeMode = true;
+  $("#btnLayer").textContent = "Route mode: on";
+  $("#btnLayer").classList.add("primary");
+  origin = [lat1, lon1];
+  destination = [lat2, lon2];
+  originMarker = L.circleMarker(origin, { color: "#4da3ff", fillColor: "#4da3ff", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Origin: " + name.split("→")[0]);
+  destMarker = L.circleMarker(destination, { color: "#ff4d4f", fillColor: "#ff4d4f", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Destination: " + name.split("→")[1]);
+  planRoute();
+};
 
 /* ------------------------------------------------------- translation ---- */
 async function translateCorridor() {

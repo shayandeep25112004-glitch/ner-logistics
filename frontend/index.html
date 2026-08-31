@@ -137,7 +137,14 @@
     <div class="side">
       <div class="card">
         <h2>Planned routes <span class="spacer"></span><button id="btnClearRoute">Clear</button></h2>
-        <div id="routes"><div class="hint">No route planned yet.</div></div>
+        <div style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);background:rgba(0,0,0,0.15)">
+          <span style="font-size:11px;color:var(--muted);width:100%">Quick Corridors:</span>
+          <button style="padding:4px 8px;font-size:11px;" onclick="setQuickRoute(26.18, 91.75, 25.57, 91.89, 'Guwahati → Shillong')">Guwahati → Shillong</button>
+          <button style="padding:4px 8px;font-size:11px;" onclick="setQuickRoute(24.83, 92.78, 23.73, 92.72, 'Silchar → Aizawl')">Silchar → Aizawl</button>
+          <button style="padding:4px 8px;font-size:11px;" onclick="setQuickRoute(25.90, 93.73, 25.67, 94.11, 'Dimapur → Kohima')">Dimapur → Kohima</button>
+          <button style="padding:4px 8px;font-size:11px;" onclick="setQuickRoute(26.75, 94.22, 27.09, 93.61, 'Jorhat → Itanagar')">Jorhat → Itanagar</button>
+        </div>
+        <div id="routes"><div class="hint">Turn on <b>Route mode</b> &amp; click 2 map points, or click a Quick Corridor above.</div></div>
       </div>
 
       <div class="card">
