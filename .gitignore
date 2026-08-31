@@ -1,0 +1,41 @@
+__pycache__/
+*.pyc
+*.db-wal
+*.db-shm
+
+# Raw OSM extracts - large, not needed at runtime (only for pipeline build)
+data/raw/
+
+# Intermediate pipeline outputs - not needed at runtime
+data/processed/edge_features.parquet
+data/processed/train_labels.parquet
+
+# Runtime data - KEEP these (needed for the server to work)
+# data/ner_platform.db      <-- tracked
+# data/processed/disruption_model.joblib  <-- tracked
+# data/processed/model_metrics.json       <-- tracked
+
+# Uploads (user generated, ephemeral)
+data/uploads/
+data/processed/photos/
+
+# Python
+*.pyc
+*.pyo
+.Python
+env/
+venv/
+.env
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+data/processed/dem_tiles/
+docs/*.pptx
+*.log
+
+data/ner_platform.db
+data/processed/disruption_model.joblib
+data/processed/model_metrics.json

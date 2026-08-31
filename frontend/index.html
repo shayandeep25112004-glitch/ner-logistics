@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NER Logistics &amp; Accessibility Intelligence Platform</title>
+<link rel="stylesheet" href="/static/vendor/leaflet.css" />
+<style>
+  :root {
+    --bg: #0b1020; --panel: #141b31; --panel-2: #1b2340; --line: #26304f;
+    --text: #e6ebff; --muted: #8e9ac4; --accent: #4da3ff;
+    --open: #2ecc71; --risk: #f5a623; --blocked: #ff4d4f; --critical: #b00020;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 12px 18px;
+    background: linear-gradient(90deg, #101736, #16204a); border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: .3px; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+  .pill {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+    border-radius: 999px; padding: 4px 10px; font-size: 12px;
+  }
+  button, select {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #04101f; border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: progress; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 10px; padding: 12px 18px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .kpi .v { font-size: 22px; font-weight: 700; }
+  .kpi .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 400px; gap: 12px; padding: 0 18px 18px; }
+  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .card h2 { margin: 0; padding: 10px 14px; font-size: 13px; text-transform: uppercase;
+             letter-spacing: .7px; color: var(--muted); border-bottom: 1px solid var(--line);
+             display: flex; align-items: center; gap: 10px; }
+  .card h2 .spacer { flex: 1; }
+  #map { height: 560px; background: #0d1326; }
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .scroll { max-height: 300px; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .b-open { background: rgba(46,204,113,.15); color: var(--open); }
+  .b-risk { background: rgba(245,166,35,.15); color: var(--risk); }
+  .b-blocked { background: rgba(255,77,79,.18); color: var(--blocked); }
+  .b-critical { background: rgba(176,0,32,.3); color: #ff8a9b; }
+  .bar { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; }
+  .row { display: flex; gap: 8px; align-items: center; padding: 8px 14px; flex-wrap: wrap; }
+  .row label { color: var(--muted); font-size: 12px; }
+  .legend { display: flex; gap: 12px; padding: 8px 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 5px; }
+  .alert { padding: 9px 14px; border-bottom: 1px solid var(--line); }
+  .alert .t { font-weight: 600; }
+  .alert .m { color: var(--muted); font-size: 12px; }
+  .alert .ts { color: var(--muted); font-size: 11px; }
+  .hint { color: var(--muted); font-size: 12px; padding: 8px 14px; }
+  .route { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .route .hd { display: flex; justify-content: space-between; align-items: center; }
+  .mono { font-variant-numeric: tabular-nums; }
+  #status { font-size: 12px; color: var(--muted); padding: 0 18px 8px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>NER Logistics &amp; Accessibility Intelligence Platform</h1>
+    <div class="sub">Arunachal Pradesh &middot; Assam &middot; Manipur &middot; Meghalaya &middot; Mizoram &middot; Nagaland &middot; Sikkim &middot; Tripura</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="pillNet">network &ndash;</span>
+  <span class="pill" id="pillModel">model &ndash;</span>
+  <span class="pill" id="pillTime">&ndash;</span>
+  <button class="primary" id="btnRefresh">Refresh risk</button>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid">
+  <div class="card">
+    <h2>
+      Accessibility map
+      <span class="spacer"></span>
+      <select id="selState"><option value="">All states</option></select>
+      <label style="font-size:12px;color:var(--muted)">min risk
+        <input type="range" id="rngRisk" min="0" max="0.9" step="0.05" value="0" style="width:100px">
+      </label>
+      <button id="btnLayer">Route mode: off</button>
+    </h2>
+    <div id="map"></div>
+    <div class="legend">
+      <span><i style="background:var(--open)"></i>open</span>
+      <span><i style="background:var(--risk)"></i>at risk (&ge;0.35)</span>
+      <span><i style="background:var(--blocked)"></i>blocked (&ge;0.70)</span>
+      <span><i style="background:#7ad7ff"></i>suggested route</span>
+      <span><i style="background:#ffd166"></i>alternate route</span>
+    </div>
+    <div class="hint" id="mapHint">
+      Turn on <b>Route mode</b>, then click two points on the map (origin, then destination)
+      to plan a risk-aware journey with alternates.
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h2>Planned routes <span class="spacer"></span><button id="btnClearRoute">Clear</button></h2>
+      <div id="routes"><div class="hint">No route planned yet.</div></div>
+    </div>
+
+    <div class="card">
+      <h2>District connectivity</h2>
+      <div class="scroll"><table id="tblDistricts">
+        <thead><tr><th>State</th><th>Open</th><th>Risk</th><th>Blocked</th><th>Connectivity</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h2>High-risk corridors <span class="spacer"></span>
+        <select id="selLang">
+          <option value="en">English</option><option value="hi">हिन्दी</option>
+          <option value="as">অসমীয়া</option><option value="bn">বাংলা</option>
+          <option value="ne">नेपाली</option><option value="mni">Meitei</option>
+        </select>
+      </h2>
+      <div class="scroll"><table id="tblCorridors">
+        <thead><tr><th>Road</th><th>State</th><th>km</th><th>Risk</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h2>Live alerts</h2>
+      <div class="scroll" id="alerts"><div class="hint">No alerts yet.</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Essential-supply consignments</h2>
+      <div class="scroll"><table id="tblShips">
+        <thead><tr><th>ID</th><th>Commodity</th><th>To</th><th>ETA</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="hint">Driver app posts GPS to <code>/api/shipments/ping</code>; the response
+      carries re-route advice when the corridor degrades.</div>
+    </div>
+  </div>
+</div>
+<div id="status"></div>
+
+<script src="/static/vendor/leaflet.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

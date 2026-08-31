@@ -1,0 +1,45 @@
+# Core web stack
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.5
+python-multipart>=0.0.9      # needed for the photo upload endpoint
+
+# Data / ML
+numpy>=1.26
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.4
+joblib>=1.3
+
+# Geospatial / OSM
+osmium>=4.0                  # reads .osm.pbf extracts; prebuilt wheels, no compiler needed
+
+# HTTP
+requests>=2.31
+
+# Reporting
+python-pptx>=0.6.23          # tools/make_deck.py
+
+# Testing. Starlette's TestClient needs httpx2, not httpx - and the failure surfaces as
+# "Form data requires python-multipart" raised at *import* time, which sends you looking
+# in the wrong place entirely.
+httpx2>=2.0
+
+# ---------------------------------------------------------------------------
+# Production extras (not required for the prototype)
+# ---------------------------------------------------------------------------
+# psycopg[binary]>=3.1       # PostgreSQL
+# geoalchemy2>=0.14          # PostGIS
+# sqlalchemy>=2.0            # ORM if you outgrow raw SQL
+# shapely>=2.0               # geometry ops beyond what the prototype needs
+# celery[redis]>=5.3         # scheduled risk rescoring as a real job queue
+# prometheus-client>=0.20    # metrics
+
+# ---------------------------------------------------------------------------
+# A note on memory
+# ---------------------------------------------------------------------------
+# The training pipeline was developed and verified on a 2 GB box. `build_dataset` computes
+# weak labels for all 8.76M edge-days first (~35 MB) and only then materialises features for
+# the down-sampled rows (~65 MB), because a dense 8.76M x 14 matrix plus gradient boosting
+# got the process OOM-killed at 1.55 GB RSS. If you raise SAMPLE_EDGES or NEG_PER_POS on a
+# small machine, watch RSS - the kernel kills it silently and a piped `tee` still exits 0.

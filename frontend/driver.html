@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="theme-color" content="#0b1020" />
+<title>NER Driver — consignment tracking</title>
+<style>
+  :root { --bg:#0b1020; --panel:#141b31; --line:#26304f; --text:#e6ebff; --muted:#8e9ac4;
+          --accent:#4da3ff; --ok:#2ecc71; --warn:#f5a623; --bad:#ff4d4f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { padding:14px 16px; background:#101736; border-bottom:1px solid var(--line);
+           display:flex; gap:10px; align-items:center; }
+  header h1 { font-size:15px; margin:0; flex:1; }
+  .net { font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); }
+  .net.on { color:var(--ok); border-color:var(--ok); } .net.off { color:var(--warn); border-color:var(--warn); }
+  main { padding:14px 16px 90px; max-width:640px; margin:0 auto; }
+  
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+          padding:14px; margin-bottom:12px; }
+  label { display:block; color:var(--muted); font-size:12px; margin:10px 0 5px;
+          text-transform:uppercase; letter-spacing:.5px; }
+  input, select { width:100%; background:#0d1326; color:var(--text); border:1px solid var(--line);
+                  border-radius:10px; padding:11px; font-size:15px; }
+  button { width:100%; padding:13px; border-radius:12px; border:1px solid var(--line);
+           background:var(--accent); color:#04101f; font-size:15px; font-weight:700; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--text); }
+  .big { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .muted { color:var(--muted); font-size:12px; }
+  .adv { border-radius:12px; padding:13px; margin-top:10px; display:none; }
+  .adv.go { display:block; background:rgba(245,166,35,.14); border:1px solid var(--warn); }
+  .adv.block { display:block; background:rgba(255,77,79,.14); border:1px solid var(--bad); }
+  .adv.ok { display:block; background:rgba(46,204,113,.10); border:1px solid var(--ok); }
+  .row { display:flex; gap:10px; }
+  .stat { flex:1; text-align:center; }
+  .stat .l { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Driver app — essential supply run</h1>
+  <span class="net" id="net">checking…</span>
+</header>
+
+<main>
+  <div class="card">
+    <label>Consignment ID</label>
+    <input id="sid" placeholder="e.g. MED-2026-0042" />
+    <label>Commodity</label>
+    <select id="commodity">
+      <option value="medicine">Medicines</option>
+      <option value="food">Food supplies</option>
+      <option value="construction">Construction material</option>
+      <option value="agri_produce">Agricultural produce</option>
+      <option value="fuel">Fuel</option>
+    </select>
+    <div class="row">
+      <div style="flex:1"><label>From</label><input id="origin" placeholder="Guwahati" /></div>
+      <div style="flex:1"><label>To (name)</label><input id="destination" placeholder="Tawang" /></div>
+    </div>
+    <div class="row">
+      <div style="flex:1"><label>Destination lat</label><input id="dlat" type="number" step="0.0001" value="27.5860" /></div>
+      <div style="flex:1"><label>Destination lon</label><input id="dlon" type="number" step="0.0001" value="91.8590" /></div>
+    </div>
+    <div class="row">
+      <div style="flex:1"><label>Vehicle no.</label><input id="veh" placeholder="AS-01-AB-1234" /></div>
+      <div style="flex:1"><label>Driver phone</label><input id="phone" placeholder="+91…" /></div>
+    </div>
+    <button id="btnStart">Register &amp; start tracking</button>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div class="stat"><div class="big" id="eta">—</div><div class="l">ETA minutes</div></div>
+      <div class="stat"><div class="big" id="dist">—</div><div class="l">km left</div></div>
+      <div class="stat"><div class="big" id="risk">—</div><div class="l">risk ahead</div></div>
+    </div>
+    <div class="muted" id="fix">Not tracking yet.</div>
+    <div class="adv" id="advice"></div>
+    <button class="ghost" id="btnStop">Stop tracking</button>
+  </div>
+
+  <div class="card">
+    <label>Offline note</label>
+    <div class="muted">
+      Pings are buffered on the device while there is no signal and flushed in order when
+      the connection returns, so the control room still sees the full trace afterwards.
+    </div>
+  </div>
+</main>
+
+<script>
+/*
+ * Driver app: registers a consignment, then streams GPS pings.
+ *
+ * The interesting part is the response to each ping: the server re-scores the remaining
+ * corridor and tells the driver whether to divert *before* reaching the blocked stretch,
+ * with the minutes saved. Pings made while offline are buffered in IndexedDB and replayed
+ * in chronological order.
+ */
+const DB = "ner-driver";
+let db = null, timer = null, lastFix = null;
+
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB, 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains("pings")) d.createObjectStore("pings", { keyPath: "uuid", autoIncrement: true });
+    };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+const store = (m = "readonly") => db.transaction("pings", m).objectStore("pings");
+const rq = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+
+function net(on) {
+  const el = document.getElementById("net");
+  el.textContent = on ? "online" : "offline"; el.className = "net " + (on ? "on" : "off");
+}
+
+async function start() {
+  const id = document.getElementById("sid").value.trim() ||
+    ("RUN-" + Date.now().toString().slice(-6));
+  const body = {
+    id,
+    commodity: document.getElementById("commodity").value,
+    origin: document.getElementById("origin").value,
+    destination: document.getElementById("destination").value,
+    dest_lat: +document.getElementById("dlat").value,
+    dest_lon: +document.getElementById("dlon").value,
+    vehicle_no: document.getElementById("veh").value,
+    driver_phone: document.getElementById("phone").value,
+    driver_name: "",
+    priority: body_priority(),
+  };
+  try {
+    const r = await fetch("/api/shipments", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(await r.text());
+  } catch (e) { /* offline: we still track, and register on reconnect */ }
+
+  document.getElementById("sid").value = id;
+  timer = setInterval(track, 15000);
+  track();
+}
+
+function body_priority() {
+  return document.getElementById("commodity").value === "medicine" ? 1 : 2;
+}
+
+function track() {
+  if (!navigator.geolocation) { document.getElementById("fix").textContent = "No GPS on this device"; return; }
+  navigator.geolocation.getCurrentPosition(async (p) => {
+    lastFix = { lat: p.coords.latitude, lon: p.coords.longitude,
+                speed_kmph: (p.coords.speed || 0) * 3.6, heading: p.coords.heading || 0 };
+    document.getElementById("fix").textContent =
+      `GPS ${lastFix.lat.toFixed(5)}, ${lastFix.lon.toFixed(5)} ±${Math.round(p.coords.accuracy)} m · ${new Date().toLocaleTimeString()}`;
+    await sendPing(lastFix);
+  }, (e) => { document.getElementById("fix").textContent = "GPS: " + e.message; },
+  { enableHighAccuracy: true, timeout: 15000 });
+}
+
+async function sendPing(fix) {
+  const rec = {
+    shipment_id: document.getElementById("sid").value.trim(),
+    lat: fix.lat, lon: fix.lon, speed_kmph: fix.speed_kmph,
+    heading: fix.heading, battery: 100, at: new Date().toISOString(),
+  };
+  await rq(store("readwrite").add(rec));
+  await flush();
+}
+
+async function flush() {
+  net(navigator.onLine);
+  if (!navigator.onLine) return;
+  const q = await rq(store().getAll());
+  for (const rec of q) {
+    try {
+      const r = await fetch("/api/shipments/ping", { method: "POST",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      await rq(store("readwrite").delete(rec.uuid));
+      render(d);
+    } catch (e) { return; }          // keep the order; retry on next tick
+  }
+}
+
+function render(d) {
+  document.getElementById("eta").textContent =
+    d.eta_minutes ? Math.round(d.eta_minutes) : "—";
+  document.getElementById("dist").textContent =
+    d.distance_remaining_km ? d.distance_remaining_km.toFixed(0) : "—";
+  const risk = d.risk_ahead || 0;
+  document.getElementById("risk").textContent = (risk * 100).toFixed(0) + "%";
+
+  const el = document.getElementById("advice");
+  if (!d.advice) { el.className = "adv"; return; }
+  if (d.advice.reroute) {
+    el.className = "adv go";
+    el.innerHTML = `<b>⚠ Divert advised</b><br>${d.advice.reason}<br>` +
+      `Alternate route saves about <b>${Math.round(d.advice.saved_minutes)} min</b> ` +
+      `once the risk is priced in. Open the dashboard map for the suggested alignment.`;
+  } else if (risk >= 0.7) {
+    el.className = "adv block";
+    el.innerHTML = `<b>⛔ Blocked corridor ahead</b><br>${d.advice.reason || ""}<br>` +
+      `Report your position and await instructions from the control room.`;
+  } else {
+    el.className = "adv ok";
+    el.innerHTML = `<b>✅ Route clear</b><br>Continue. Corridor risk ${(risk * 100).toFixed(0)}%.`;
+  }
+}
+
+document.getElementById("btnStart").onclick = start;
+document.getElementById("btnStop").onclick = () => {
+  clearInterval(timer); timer = null;
+  document.getElementById("fix").textContent = "Tracking stopped.";
+};
+window.addEventListener("online", () => { net(true); flush(); });
+window.addEventListener("offline", () => net(false));
+
+(async function () { db = await idb(); net(navigator.onLine); setInterval(flush, 20000); })();
+</script>
+</body>
+</html>

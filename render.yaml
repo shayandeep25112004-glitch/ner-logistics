@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ner-logistics-platform
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd backend && python -m uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: PYTHONPATH
+        value: /opt/render/project/src/backend
+      - key: PYTHONUNBUFFERED
+        value: "1"

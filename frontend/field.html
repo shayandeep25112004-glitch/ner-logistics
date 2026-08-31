@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="theme-color" content="#0b1020" />
+<title>NER Field Report — offline capable</title>
+<style>
+  :root {
+    --bg:#0b1020; --panel:#141b31; --line:#26304f; --text:#e6ebff; --muted:#8e9ac4;
+    --accent:#4da3ff; --ok:#2ecc71; --warn:#f5a623; --bad:#ff4d4f;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+         -webkit-tap-highlight-color: transparent; }
+  header { padding:14px 16px; background:#101736; border-bottom:1px solid var(--line);
+           display:flex; align-items:center; gap:10px; }
+  header h1 { font-size:15px; margin:0; flex:1; }
+  .net { font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); }
+  .net.on { color:var(--ok); border-color:var(--ok); }
+  .net.off { color:var(--warn); border-color:var(--warn); }
+  main { padding:14px 16px 100px; max-width:640px; margin:0 auto; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+          padding:14px; margin-bottom:12px; }
+  label { display:block; color:var(--muted); font-size:12px; margin:10px 0 5px;
+          text-transform:uppercase; letter-spacing:.5px; }
+  input, select, textarea {
+    width:100%; background:#0d1326; color:var(--text); border:1px solid var(--line);
+    border-radius:10px; padding:11px; font-size:15px; font-family:inherit;
+  }
+  textarea { min-height:74px; resize:vertical; }
+  .cats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .cat { background:#0d1326; border:1px solid var(--line); border-radius:10px; padding:11px 6px;
+         text-align:center; font-size:13px; cursor:pointer; }
+  .cat.sel { border-color:var(--accent); background:rgba(77,163,255,.14); font-weight:600; }
+  .sev { display:flex; gap:6px; }
+  .sev span { flex:1; text-align:center; padding:9px 0; border-radius:8px;
+              border:1px solid var(--line); background:#0d1326; cursor:pointer; font-size:13px; }
+  .sev span.sel { border-color:var(--accent); background:rgba(77,163,255,.14); font-weight:600; }
+  button { width:100%; padding:14px; border-radius:12px; border:1px solid var(--line);
+           background:var(--accent); color:#04101f; font-size:16px; font-weight:700;
+           cursor:pointer; margin-top:12px; }
+  button.ghost { background:transparent; color:var(--text); }
+  .pos { font-variant-numeric:tabular-nums; font-size:13px; color:var(--muted); }
+  .q { border-bottom:1px solid var(--line); padding:9px 0; font-size:13px;
+       display:flex; gap:8px; align-items:center; }
+  .q:last-child { border-bottom:none; }
+  .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .thumb { width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+  .muted { color:var(--muted); font-size:12px; }
+  .banner { padding:10px 12px; border-radius:10px; font-size:13px; margin-bottom:12px; display:none; }
+  .banner.ok { display:block; background:rgba(46,204,113,.12); color:var(--ok); }
+  .banner.warn { display:block; background:rgba(245,166,35,.12); color:var(--warn); }
+</style>
+</head>
+<body>
+<header>
+  <h1>NER Field Report</h1>
+  <span class="net" id="net">checking…</span>
+</header>
+
+<main>
+  <div class="banner" id="banner"></div>
+
+  <div class="card">
+    <label>Incident type</label>
+    <div class="cats" id="cats">
+      <div class="cat" data-v="landslide">🪨 Landslide</div>
+      <div class="cat" data-v="flood">🌊 Flood</div>
+      <div class="cat" data-v="road_damage">🚧 Road damage</div>
+      <div class="cat" data-v="blocked">⛔ Fully blocked</div>
+      <div class="cat" data-v="congestion">🚗 Congestion</div>
+      <div class="cat" data-v="clear">✅ Road clear</div>
+    </div>
+
+    <label>Severity</label>
+    <div class="sev" id="sev">
+      <span data-v="1">1</span><span data-v="2">2</span><span data-v="3" class="sel">3</span>
+      <span data-v="4">4</span><span data-v="5">5</span>
+    </div>
+
+    <label>Your location (geo-tagged)</label>
+    <div class="pos" id="pos">Tap below to capture GPS</div>
+    <button class="ghost" id="btnGps" type="button">📍 Use my GPS location</button>
+
+    <label>Photo (optional)</label>
+    <input type="file" id="photo" accept="image/*" capture="environment" />
+
+    <label>Note</label>
+    <textarea id="note" placeholder="e.g. Half carriageway gone at km 142, single-lane alternate in use, two trucks stranded"></textarea>
+
+    <label>Reported by / device</label>
+    <input id="who" placeholder="name or post, e.g. JE PWD Koloriang" />
+
+    <button id="btnSend" type="button">Save &amp; submit</button>
+    <div class="muted" style="margin-top:8px">
+      Works with no signal: the report is stored on the device and uploaded automatically
+      the moment connectivity returns.
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Pending / recent on this device <span id="qcount" class="muted"></span></label>
+    <div id="queue"><div class="muted">Nothing queued.</div></div>
+    <button class="ghost" id="btnSync" type="button">Sync now</button>
+  </div>
+
+  <div class="card">
+    <label>Nearby high-risk corridors (cached)</label>
+    <div id="nearby" class="muted">Sync to load the latest risk around you.</div>
+  </div>
+</main>
+
+<script>
+/*
+ * Offline-first field reporting.
+ *
+ * The whole point of this page is that most of the NER has patchy or no mobile data, so:
+ *   1. every report is written to IndexedDB *before* any network attempt
+ *   2. a sync flushes the queue in one batched POST (the API accepts an array for exactly
+ *      this reason)
+ *   3. sync is attempted on every visibility/online change and on a timer, so the officer
+ *      never has to think about it
+ *   4. the risk layer around them is cached so the page is still useful at 0 bars
+ *
+ * A service worker (sw.js) additionally caches the app shell so the page itself opens
+ * with no connectivity at all.
+ */
+const DB_NAME = "ner-field", DB_VER = 1;
+let db = null, selected = { category: null, severity: 3 }, myPos = null;
+
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains("queue")) {
+        d.createObjectStore("queue", { keyPath: "uuid", autoIncrement: true });
+      }
+      if (!d.objectStoreNames.contains("cache")) {
+        d.createObjectStore("cache", { keyPath: "key" });
+      }
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+const tx = (store, mode = "readonly") => db.transaction(store, mode).objectStore(store);
+const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+
+function deviceId() {
+  let id = localStorage.getItem("ner_device");
+  if (!id) { id = "dev-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("ner_device", id); }
+  return id;
+}
+
+/* ------------------------------------------------------------- ui ---- */
+function bind() {
+  document.querySelectorAll("#cats .cat").forEach((el) => {
+    el.onclick = () => {
+      document.querySelectorAll("#cats .cat").forEach((x) => x.classList.remove("sel"));
+      el.classList.add("sel"); selected.category = el.dataset.v;
+    };
+  });
+  document.querySelectorAll("#sev span").forEach((el) => {
+    el.onclick = () => {
+      document.querySelectorAll("#sev span").forEach((x) => x.classList.remove("sel"));
+      el.classList.add("sel"); selected.severity = +el.dataset.v;
+    };
+  });
+  document.getElementById("btnGps").onclick = getPos;
+  document.getElementById("btnSend").onclick = save;
+  document.getElementById("btnSync").onclick = () => sync(true);
+  document.getElementById("who").value = localStorage.getItem("ner_who") || "";
+}
+
+function getPos() {
+  const el = document.getElementById("pos");
+  if (!navigator.geolocation) { el.textContent = "Geolocation unavailable on this device"; return; }
+  el.textContent = "Locating…";
+  navigator.geolocation.getCurrentPosition(
+    (p) => {
+      myPos = { lat: p.coords.latitude, lon: p.coords.longitude,
+                acc: Math.round(p.coords.accuracy) };
+      el.textContent = `${myPos.lat.toFixed(5)}, ${myPos.lon.toFixed(5)}  (±${myPos.acc} m)`;
+      loadNearby();
+    },
+    (e) => { el.textContent = "GPS error: " + e.message; },
+    { enableHighAccuracy: true, timeout: 20000 });
+}
+
+function banner(msg, kind) {
+  const b = document.getElementById("banner");
+  b.textContent = msg; b.className = "banner " + kind;
+  setTimeout(() => { b.className = "banner"; }, 6000);
+}
+
+/* ---------------------------------------------------------- queue ---- */
+async function save() {
+  if (!selected.category) return banner("Pick an incident type first.", "warn");
+  if (!myPos) return banner("Capture your GPS location first.", "warn");
+  localStorage.setItem("ner_who", document.getElementById("who").value);
+
+  const photo = document.getElementById("photo").files[0];
+  let photoData = null;
+  if (photo) photoData = await downscale(photo);
+
+  const rec = {
+    lat: myPos.lat, lon: myPos.lon,
+    category: selected.category, severity: selected.severity,
+    note: document.getElementById("note").value,
+    device_id: deviceId(), reported_by: document.getElementById("who").value,
+    captured_at: new Date().toISOString(),
+    photo: photoData, sent: false,
+  };
+  await req(tx("queue", "readwrite").add(rec));
+  document.getElementById("note").value = "";
+  document.getElementById("photo").value = "";
+  banner("Saved on device. It will upload automatically.", "ok");
+  renderQueue();
+  sync(false);
+}
+
+/* Client-side downscale: NER uplinks are often 2G-class, so an 8 MB phone photo is a
+   failed upload. 800 KB of JPEG is plenty for an engineer to assess a slip. */
+function downscale(file, maxSide = 1280, quality = 0.72) {
+  return new Promise((res) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+    img.src = url;
+  });
+}
+
+async function pending() {
+  const all = await req(tx("queue").getAll());
+  return all.filter((r) => !r.sent);
+}
+
+async function renderQueue() {
+  const all = await req(tx("queue").getAll());
+  const el = document.getElementById("queue");
+  document.getElementById("qcount").textContent =
+    `(${all.filter((r) => !r.sent).length} pending)`;
+  if (!all.length) { el.innerHTML = '<div class="muted">Nothing queued.</div>'; return; }
+  el.innerHTML = all.slice(-12).reverse().map((r) => `
+    <div class="q">
+      <span class="dot" style="background:${r.sent ? "var(--ok)" : "var(--warn)"}"></span>
+      <div style="flex:1">
+        <div>${r.category} · sev ${r.severity} ${r.sent ? "" : "· <b>pending</b>"}</div>
+        <div class="muted">${r.lat.toFixed(4)}, ${r.lon.toFixed(4)} · ${new Date(r.captured_at).toLocaleString()}</div>
+      </div>
+      ${r.photo ? `<img class="thumb" src="${r.photo}">` : ""}
+    </div>`).join("");
+}
+
+/* ------------------------------------------------------------ sync ---- */
+async function sync(manual) {
+  const q = await pending();
+  if (!q.length) { if (manual) banner("Nothing to sync.", "warn"); return; }
+  setNet(navigator.onLine);
+  if (!navigator.onLine) { if (manual) banner("Still offline — " + q.length + " report(s) queued.", "warn"); return; }
+
+  // 1. text reports go up as one batch
+  const body = q.map((r) => ({
+    lat: r.lat, lon: r.lon, category: r.category, severity: r.severity,
+    note: r.note, device_id: r.device_id, reported_by: r.reported_by,
+    captured_at: r.captured_at,
+  }));
+  try {
+    const res = await fetch("/api/field/reports", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    for (const r of q) { r.sent = true; await req(tx("queue", "readwrite").put(r)); }
+    banner(`Uploaded ${q.length} report(s).`, "ok");
+  } catch (e) {
+    if (manual) banner("Upload failed (" + e.message + ") — kept on device.", "warn");
+    return;
+  }
+
+  // 2. photos go up one at a time afterwards, so a big file cannot block the report
+  for (const r of q) {
+    if (!r.photo) continue;
+    try {
+      const blob = await (await fetch(r.photo)).blob();
+      const fd = new FormData();
+      fd.append("file", blob, "photo.jpg");
+      fd.append("lat", r.lat); fd.append("lon", r.lon);
+      fd.append("category", r.category); fd.append("note", r.note || "");
+      fd.append("device_id", r.device_id);
+      await fetch("/api/field/reports/photo", { method: "POST", body: fd });
+    } catch (e) { /* retried next sync */ }
+  }
+  renderQueue();
+}
+
+function setNet(online) {
+  const el = document.getElementById("net");
+  el.textContent = online ? "online" : "offline";
+  el.className = "net " + (online ? "on" : "off");
+}
+
+/* --------------------------------------------------------- nearby ---- */
+async function loadNearby() {
+  if (!myPos) return;
+  try {
+    const d = await (await fetch("/api/risk/corridors?n=20")).json();
+    const near = d.corridors
+      .map((c) => ({ ...c, km: dist(myPos.lat, myPos.lon, c.lat, c.lon) }))
+      .sort((a, b) => a.km - b.km).slice(0, 5);
+    document.getElementById("nearby").innerHTML = near.map((c) =>
+      `<div class="q"><span class="dot" style="background:${
+        c.status === "blocked" ? "var(--bad)" : c.status === "at_risk" ? "var(--warn)" : "var(--ok)"}"></span>
+       <div style="flex:1"><b>${c.road}</b> <span class="muted">(${c.state}, ${c.km.toFixed(1)} km away)</span></div>
+       <div>${(c.risk * 100).toFixed(0)}%</div></div>`).join("");
+    await req(tx("cache", "readwrite").put({ key: "nearby", at: Date.now(), html: document.getElementById("nearby").innerHTML }));
+  } catch (e) {
+    const c = await req(tx("cache").get("nearby"));
+    if (c) document.getElementById("nearby").innerHTML =
+      c.html + `<div class="muted">cached ${new Date(c.at).toLocaleString()}</div>`;
+  }
+}
+function dist(a, b, c, d) {
+  const R = 6371, toR = (x) => x * Math.PI / 180;
+  const x = Math.sin(toR(c - a) / 2) ** 2 +
+    Math.cos(toR(a)) * Math.cos(toR(c)) * Math.sin(toR(d - b) / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+
+/* ----------------------------------------------------------- boot ---- */
+(async function () {
+  db = await idb();
+  bind();
+  setNet(navigator.onLine);
+  renderQueue();
+  window.addEventListener("online", () => { setNet(true); sync(false); });
+  window.addEventListener("offline", () => setNet(false));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) sync(false); });
+  setInterval(() => sync(false), 30000);
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/static/sw.js").catch(() => {});
+  }
+  const c = await req(tx("cache").get("nearby"));
+  if (c) document.getElementById("nearby").innerHTML = c.html;
+})();
+</script>
+</body>
+</html>
