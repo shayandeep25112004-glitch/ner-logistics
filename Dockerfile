@@ -18,7 +18,9 @@ COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 COPY tools/ ./tools/
 COPY docs/ ./docs/
-COPY data/ ./data/
+# data/ is not in the repo (DB excluded from git).
+# The app auto-creates the SQLite schema on first startup.
+RUN mkdir -p /app/data/processed /app/data/raw /app/data/uploads
 
 ENV PYTHONPATH=/app/backend
 EXPOSE 8000
