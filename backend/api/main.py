@@ -204,13 +204,18 @@ def get_edges_geojson(
 
     features = []
     with db() as conn:
-        query = "SELECT id, highway, ref, name, state, length_m, is_bridge, is_ford, geom FROM edge"
-        params = []
         if state:
-            query += " WHERE state = ?"
-            params.append(state)
-
-        rows = conn.execute(query, params).fetchall()
+            query = "SELECT id, highway, ref, name, state, length_m, is_bridge, is_ford, geom FROM edge WHERE state = ?"
+            rows = conn.execute(query, [state]).fetchall()
+        else:
+            # For all-state overview, return major arteries plus all at-risk segments to keep memory low
+            query = """SELECT id, highway, ref, name, state, length_m, is_bridge, is_ford, geom 
+                       FROM edge 
+                       WHERE highway IN ('trunk', 'primary', 'secondary', 'tertiary', 'trunk_link', 'primary_link') 
+                          OR is_bridge = 1 
+                          OR is_ford = 1
+                       LIMIT 8000"""
+            rows = conn.execute(query).fetchall()
 
     for r in rows:
         eid = r["id"]

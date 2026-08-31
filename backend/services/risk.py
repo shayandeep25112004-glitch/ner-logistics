@@ -43,24 +43,17 @@ def refresh_risk_scores() -> dict:
     model = load_disruption_model()
 
     with db() as conn:
-        nodes = {
-            r["id"]: dict(r)
-            for r in conn.execute("SELECT id, lat, lon, ele_m, slope_deg, tri, curvature, state FROM node").fetchall()
-        }
-        edges = [
-            dict(r)
-            for r in conn.execute(
-                """SELECT id, way_id, node_a, node_b, highway, ref, name,
-                          is_bridge, is_ford, length_m, base_reliability, state
-                   FROM edge"""
-            ).fetchall()
-        ]
+        rows = conn.execute(
+            """SELECT e.id, e.is_bridge, e.is_ford, e.base_reliability, e.length_m, e.state,
+                      n.slope_deg, n.tri, n.curvature, n.ele_m
+               FROM edge e LEFT JOIN node n ON e.node_a = n.id"""
+        ).fetchall()
         field_reports = [
             dict(r)
             for r in conn.execute("SELECT edge_id, category, severity FROM field_report WHERE edge_id IS NOT NULL").fetchall()
         ]
 
-    if not edges:
+    if not rows:
         return {"status": "error", "message": "No edges in database"}
 
     # Live forecast for state centroids
@@ -87,27 +80,32 @@ def refresh_risk_scores() -> dict:
     is_monsoon = 1 if month in MONSOON_MONTHS else 0
 
     # Build feature matrix
-    n_edges = len(edges)
+    n_edges = len(rows)
     X = np.zeros((n_edges, 14), dtype=np.float32)
+    edge_ids = [None] * n_edges
+    edge_states = [None] * n_edges
+    edge_lengths = np.zeros(n_edges, dtype=np.float32)
 
-    for i, e in enumerate(edges):
-        u = e["node_a"]
-        node = nodes.get(u, {})
-        st = e["state"] or "AS"
+    for i, r in enumerate(rows):
+        eid = r["id"]
+        edge_ids[i] = eid
+        st = r["state"] or "AS"
+        edge_states[i] = st
+        l_km = (r["length_m"] or 0.0) / 1000.0
+        edge_lengths[i] = l_km
         wx = state_wx.get(st, {"rain_24h": 5.0, "rain_72h": 15.0, "rain_168h": 35.0, "max_intensity": 2.0})
 
-        slope = node.get("slope_deg") or 0.0
-        tri = node.get("tri") or 0.0
-        curv = node.get("curvature") or 0.0
-        ele = node.get("ele_m") or 0.0
+        slope = r["slope_deg"] or 0.0
+        tri = r["tri"] or 0.0
+        curv = r["curvature"] or 0.0
+        ele = r["ele_m"] or 0.0
         r24 = wx["rain_24h"]
         r72 = wx["rain_72h"]
         r168 = wx["rain_168h"]
         max_int = wx["max_intensity"]
-        br = e["is_bridge"] or 0
-        fo = e["is_ford"] or 0
-        base_rel = e["base_reliability"] or 0.95
-        l_km = (e["length_m"] or 0.0) / 1000.0
+        br = r["is_bridge"] or 0
+        fo = r["is_ford"] or 0
+        base_rel = r["base_reliability"] or 0.95
 
         X[i] = [slope, tri, curv, ele, r24, r72, r168, max_int, month, is_monsoon, br, fo, base_rel, l_km]
 
@@ -131,49 +129,46 @@ def refresh_risk_scores() -> dict:
         elif cat == "clear":
             report_pins[eid] = 0.0
 
-    for i, e in enumerate(edges):
-        eid = e["id"]
+    # Direct State Rollup statistics counters
+    state_stats = defaultdict(lambda: {
+        "tot": 0, "open": 0, "risk": 0, "blocked": 0, "km": 0.0, "risk_sum": 0.0, "br_risk": 0
+    })
+
+    for i, r in enumerate(rows):
+        eid = edge_ids[i]
         p = float(probs[i])
         if eid in report_pins:
             p = report_pins[eid]
         
         _LATEST_RISKS[eid] = p
-        if eid in router.edges:
-            router.edges[eid]["risk"] = p
+        if router and eid in router.edges:
+            router.edges[eid].risk = p
 
-        u = e["node_a"]
-        node = nodes.get(u, {})
-        road_label = e["ref"] or e["name"] or e["highway"] or "Road"
-
-        scored_edges.append({
-            "id": eid,
-            "road": road_label,
-            "ref": e["ref"],
-            "name": e["name"],
-            "state": e["state"],
-            "lat": node.get("lat"),
-            "lon": node.get("lon"),
-            "is_bridge": e["is_bridge"],
-            "is_ford": e["is_ford"],
-            "km": round((e["length_m"] or 0.0) / 1000.0, 2),
-            "risk": p,
-            "status": "blocked" if p >= RISK_BLOCKED else "at_risk" if p >= RISK_AT_RISK else "open",
-        })
-
-    # District / State Rollup
-    state_groups = defaultdict(list)
-    for se in scored_edges:
-        state_groups[se["state"]].append(se)
+        st = edge_states[i]
+        km = edge_lengths[i]
+        is_br = r["is_bridge"] or 0
+        s = state_stats[st]
+        s["tot"] += 1
+        s["km"] += km
+        s["risk_sum"] += p
+        if p >= RISK_BLOCKED:
+            s["blocked"] += 1
+        elif p >= RISK_AT_RISK:
+            s["risk"] += 1
+            if is_br:
+                s["br_risk"] += 1
+        else:
+            s["open"] += 1
 
     district_rows = []
-    for st, group in state_groups.items():
-        tot = len(group)
-        n_open = sum(1 for x in group if x["risk"] < RISK_AT_RISK)
-        n_risk = sum(1 for x in group if RISK_AT_RISK <= x["risk"] < RISK_BLOCKED)
-        n_block = sum(1 for x in group if x["risk"] >= RISK_BLOCKED)
-        tot_km = sum(x["km"] for x in group)
-        mean_r = sum(x["risk"] for x in group) / tot if tot else 0.0
-        br_risk = sum(1 for x in group if x["is_bridge"] and x["risk"] >= RISK_AT_RISK)
+    for st, s in state_stats.items():
+        tot = s["tot"]
+        n_open = s["open"]
+        n_risk = s["risk"]
+        n_block = s["blocked"]
+        tot_km = s["km"]
+        mean_r = s["risk_sum"] / tot if tot else 0.0
+        br_risk = s["br_risk"]
         conn_idx = (n_open + 0.5 * n_risk) / tot if tot else 1.0
 
         district_rows.append({

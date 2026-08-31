@@ -38,24 +38,50 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return r * c
 
 
+class CompactEdge:
+    __slots__ = (
+        "id", "node_a", "node_b", "highway", "ref", "name", "road",
+        "is_bridge", "is_ford", "distance_km", "base_minutes", "risk"
+    )
+    def __init__(self, id, node_a, node_b, highway, ref, name, road, is_bridge, is_ford, distance_km, base_minutes):
+        self.id = id
+        self.node_a = node_a
+        self.node_b = node_b
+        self.highway = highway
+        self.ref = ref
+        self.name = name
+        self.road = road
+        self.is_bridge = is_bridge
+        self.is_ford = is_ford
+        self.distance_km = distance_km
+        self.base_minutes = base_minutes
+        self.risk = 0.0
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def get(self, item, default=None):
+        return getattr(self, item, default)
+
+
 class NetworkRouter:
     def __init__(self):
-        self.nodes: dict[int, dict] = {}
-        self.edges: dict[str, dict] = {}
-        self.adj: dict[int, list[dict]] = defaultdict(list)
+        self.nodes: dict[int, tuple[float, float]] = {}  # nid -> (lat, lon)
+        self.edges: dict[str, CompactEdge] = {}
+        self.adj: dict[int, list[tuple[int, str]]] = defaultdict(list)  # u -> [(v, edge_id)]
         self.components: dict[int, int] = {}
         self.grid_buckets: dict[tuple[int, int], list[int]] = defaultdict(list)
         self.loaded = False
 
     def load_graph(self):
-        """Load nodes and edges from SQLite into in-memory routing graph."""
+        """Load nodes and edges from SQLite into in-memory routing graph (compact representation)."""
         t0 = time.time()
         with db() as conn:
-            nodes_rows = conn.execute("SELECT id, lat, lon, state FROM node").fetchall()
+            # Only load essential routing attributes - do NOT load massive GeoJSON strings into RAM
+            nodes_rows = conn.execute("SELECT id, lat, lon FROM node").fetchall()
             edges_rows = conn.execute(
-                """SELECT id, way_id, node_a, node_b, highway, ref, name, surface,
-                          is_bridge, is_tunnel, is_ford, length_m, speed_kmph,
-                          base_minutes, base_reliability, state, geom
+                """SELECT id, node_a, node_b, highway, ref, name,
+                          is_bridge, is_ford, length_m, base_minutes
                    FROM edge"""
             ).fetchall()
 
@@ -66,14 +92,9 @@ class NetworkRouter:
 
         for r in nodes_rows:
             nid = r["id"]
-            lat = r["lat"]
-            lon = r["lon"]
-            self.nodes[nid] = {
-                "id": nid,
-                "lat": lat,
-                "lon": lon,
-                "state": r["state"],
-            }
+            lat = float(r["lat"])
+            lon = float(r["lon"])
+            self.nodes[nid] = (lat, lon)
             # 0.1 deg spatial hash bucket (~11 km)
             bx = int(math.floor(lat * 10))
             by = int(math.floor(lon * 10))
@@ -83,34 +104,26 @@ class NetworkRouter:
             eid = r["id"]
             u = r["node_a"]
             v = r["node_b"]
-            geom = json.loads(r["geom"]) if r["geom"] else None
-            
             road_label = r["ref"] or r["name"] or r["highway"] or "road"
-            edge_data = {
-                "id": eid,
-                "way_id": r["way_id"],
-                "node_a": u,
-                "node_b": v,
-                "highway": r["highway"],
-                "ref": r["ref"],
-                "name": r["name"],
-                "road": road_label,
-                "surface": r["surface"],
-                "is_bridge": bool(r["is_bridge"]),
-                "is_tunnel": bool(r["is_tunnel"]),
-                "is_ford": bool(r["is_ford"]),
-                "length_m": r["length_m"],
-                "distance_km": r["length_m"] / 1000.0,
-                "speed_kmph": r["speed_kmph"],
-                "base_minutes": r["base_minutes"],
-                "base_reliability": r["base_reliability"] or 0.9,
-                "state": r["state"],
-                "geom": geom,
-                "risk": 0.0, # Will be set by live risk scoring
-            }
-            self.edges[eid] = edge_data
-            self.adj[u].append({"neighbor": v, "edge_id": eid})
-            self.adj[v].append({"neighbor": u, "edge_id": eid})
+            dist_km = (r["length_m"] or 0.0) / 1000.0
+            base_min = r["base_minutes"] or 1.0
+            
+            edge_obj = CompactEdge(
+                id=eid,
+                node_a=u,
+                node_b=v,
+                highway=r["highway"],
+                ref=r["ref"],
+                name=r["name"],
+                road=road_label,
+                is_bridge=bool(r["is_bridge"]),
+                is_ford=bool(r["is_ford"]),
+                distance_km=dist_km,
+                base_minutes=base_min,
+            )
+            self.edges[eid] = edge_obj
+            self.adj[u].append((v, eid))
+            self.adj[v].append((u, eid))
 
         self._compute_connected_components()
         self.loaded = True
@@ -130,8 +143,7 @@ class NetworkRouter:
             while queue:
                 curr = queue.pop()
                 self.components[curr] = comp_id
-                for link in self.adj.get(curr, []):
-                    nbr = link["neighbor"]
+                for nbr, _ in self.adj.get(curr, []):
                     if nbr not in visited:
                         visited.add(nbr)
                         queue.append(nbr)
@@ -155,8 +167,8 @@ class NetworkRouter:
         best_nid = candidates[0]
         best_dist = float("inf")
         for nid in candidates:
-            n = self.nodes[nid]
-            d = haversine_km(lat, lon, n["lat"], n["lon"])
+            n_lat, n_lon = self.nodes[nid]
+            d = haversine_km(lat, lon, n_lat, n_lon)
             if d < best_dist:
                 best_dist = d
                 best_nid = nid
@@ -166,8 +178,8 @@ class NetworkRouter:
     def edge_cost(self, edge_id: str, custom_risks: dict[str, float] | None = None) -> tuple[float, bool]:
         """Compute traversal cost (minutes) and blocked flag for an edge."""
         edge = self.edges[edge_id]
-        risk = custom_risks.get(edge_id, edge.get("risk", 0.0)) if custom_risks else edge.get("risk", 0.0)
-        base_min = edge["base_minutes"]
+        risk = custom_risks.get(edge_id, edge.risk) if custom_risks else edge.risk
+        base_min = edge.base_minutes
 
         is_blocked = risk >= RISK_BLOCKED
         cost = base_min * (1.0 + RISK_COST_WEIGHT * risk)
@@ -188,12 +200,11 @@ class NetworkRouter:
         if start_node == target_node:
             return {"edge_ids": [], "cost": 0.0, "distance_km": 0.0, "free_flow_min": 0.0}
 
-        target_lat = self.nodes[target_node]["lat"]
-        target_lon = self.nodes[target_node]["lon"]
+        target_lat, target_lon = self.nodes[target_node]
 
         def heuristic(nid: int) -> float:
-            n = self.nodes[nid]
-            dist_km = haversine_km(n["lat"], n["lon"], target_lat, target_lon)
+            n_lat, n_lon = self.nodes[nid]
+            dist_km = haversine_km(n_lat, n_lon, target_lat, target_lon)
             return (dist_km / MAX_SPEED_KMPH) * 60.0
 
         pq = [(heuristic(start_node), 0.0, start_node, [])]
@@ -204,8 +215,8 @@ class NetworkRouter:
             f, g, u, path_edges = heapq.heappop(pq)
             if u == target_node:
                 # Path found
-                tot_dist = sum(self.edges[eid]["distance_km"] for eid in path_edges)
-                tot_free_flow = sum(self.edges[eid]["base_minutes"] for eid in path_edges)
+                tot_dist = sum(self.edges[eid].distance_km for eid in path_edges)
+                tot_free_flow = sum(self.edges[eid].base_minutes for eid in path_edges)
                 return {
                     "edge_ids": path_edges,
                     "cost": g,
@@ -217,11 +228,9 @@ class NetworkRouter:
                 continue
             visited.add(u)
 
-            for link in self.adj.get(u, []):
-                eid = link["edge_id"]
+            for v, eid in self.adj.get(u, []):
                 if forbidden_edges and eid in forbidden_edges:
                     continue
-                v = link["neighbor"]
                 ecost, _ = self.edge_cost(eid, custom_risks)
                 new_g = g + ecost
 
@@ -255,6 +264,19 @@ class NetworkRouter:
         max_risk = 0.0
         passes_blocked = False
 
+        # Fetch geometries on-demand for only the active route edges
+        edge_geoms = {}
+        if edge_ids:
+            try:
+                with db() as conn:
+                    placeholders = ",".join("?" for _ in edge_ids)
+                    rows = conn.execute(f"SELECT id, geom FROM edge WHERE id IN ({placeholders})", edge_ids).fetchall()
+                    for r in rows:
+                        if r["geom"]:
+                            edge_geoms[r["id"]] = json.loads(r["geom"])
+            except Exception:
+                pass
+
         for eid in edge_ids:
             e = self.edges[eid]
             risk = custom_risks.get(eid, e.get("risk", 0.0)) if custom_risks else e.get("risk", 0.0)
@@ -278,7 +300,7 @@ class NetworkRouter:
                 "is_ford": e["is_ford"],
             })
 
-            geom = e["geom"]
+            geom = edge_geoms.get(eid)
             if geom:
                 coords.extend(geom)
 
