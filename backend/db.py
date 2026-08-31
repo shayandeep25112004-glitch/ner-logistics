@@ -169,11 +169,29 @@ CREATE TABLE IF NOT EXISTS model_run (
 """
 
 
+def ensure_db_ready(db_path: str | Path | None = None) -> Path:
+    target = Path(db_path or DB_PATH)
+    if not target.exists() or target.stat().st_size == 0:
+        gz_path = target.with_name(target.name + ".gz")
+        if gz_path.exists():
+            import gzip
+            import shutil
+            print(f"Extracting pre-trained database from {gz_path} -> {target}...")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with gzip.open(gz_path, "rb") as f_in, open(target, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+            print(f"Database ready ({round(target.stat().st_size / 1024 / 1024, 1)} MB).")
+        else:
+            init_schema(target)
+    return target
+
+
 def get_conn(db_path: str | Path | None = None) -> sqlite3.Connection:
     # timeout matters: the elevation, weather and scoring jobs can all be writing at once,
     # and SQLite's default is to raise "database is locked" almost immediately. 60 s of
     # patience turns that from a crash into a short wait.
-    conn = sqlite3.connect(str(db_path or DB_PATH), timeout=60.0)
+    target = ensure_db_ready(db_path)
+    conn = sqlite3.connect(str(target), timeout=60.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 60000")
@@ -195,10 +213,16 @@ def db(db_path: str | Path | None = None):
 
 
 def init_schema(db_path: str | Path | None = None) -> None:
-    with db(db_path) as conn:
+    target = Path(db_path or DB_PATH)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(target), timeout=60.0)
+    try:
         conn.executescript(SCHEMA)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
-    init_schema()
+    ensure_db_ready()
     print(f"schema ready -> {DB_PATH}")

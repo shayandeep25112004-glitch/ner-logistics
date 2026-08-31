@@ -32,10 +32,13 @@ venv/
 .vscode/
 .idea/
 
+# Heavy uncompressed files
+data/ner_platform.db
+data/*.db
 data/processed/dem_tiles/
 docs/*.pptx
 *.log
 
-data/ner_platform.db
-data/processed/disruption_model.joblib
-data/processed/model_metrics.json
+!data/processed/disruption_model.joblib
+!data/processed/model_metrics.json
+!data/ner_platform.db.gz

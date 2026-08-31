@@ -1,0 +1,108 @@
+{
+  "trained_at": "2026-08-29T11:34:54.582637",
+  "n_samples": 6209,
+  "positive_rate": "0.01%",
+  "roc_auc": 0.9999,
+  "auc": 0.9999,
+  "average_precision": 0.9993,
+  "avg_precision": 0.9993,
+  "precision_at_recall_90": 1.0,
+  "worst_calibration_gap": 0.85,
+  "calibration_deciles": [
+    {
+      "decile": 1,
+      "mean_predicted": 0.0001,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 2,
+      "mean_predicted": 0.15,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 3,
+      "mean_predicted": 0.25,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 4,
+      "mean_predicted": 0.35,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 5,
+      "mean_predicted": 0.45,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 6,
+      "mean_predicted": 0.55,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 7,
+      "mean_predicted": 0.65,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 8,
+      "mean_predicted": 0.75,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 9,
+      "mean_predicted": 0.85,
+      "observed_frequency": 0.0
+    },
+    {
+      "decile": 10,
+      "mean_predicted": 1.0,
+      "observed_frequency": 0.988
+    }
+  ],
+  "permutation_importance": {
+    "slope_deg": 0.0201,
+    "tri": 0.0001,
+    "curvature": 0.0,
+    "ele_m": 0.0141,
+    "rain_24h": 0.0143,
+    "rain_72h": 0.4607,
+    "rain_168h": 0.0043,
+    "max_intensity": 0.0025,
+    "month": 0.0,
+    "is_monsoon": 0.0,
+    "is_bridge": 0.0,
+    "is_ford": 0.0,
+    "base_reliability": 0.0,
+    "length_km": 0.0
+  },
+  "features": [
+    "slope_deg",
+    "tri",
+    "curvature",
+    "ele_m",
+    "rain_24h",
+    "rain_72h",
+    "rain_168h",
+    "max_intensity",
+    "month",
+    "is_monsoon",
+    "is_bridge",
+    "is_ford",
+    "base_reliability",
+    "length_km"
+  ],
+  "label_stats": {
+    "n_samples": 6209,
+    "n_pos": 887,
+    "true_pos_rate": 0.000101,
+    "blockage_days_per_segment_year": 0.04,
+    "steep_to_flat_ratio": 13.87,
+    "quantiles": {
+      "r24": 49.8,
+      "r72": 124.2,
+      "r168": 239.1
+    }
+  },
+  "notes": "Weak-label baseline derived from ERA5 rainfall thresholds x DEM slope. AUC measures fidelity to the physical threshold rule, not true landslide prediction."
+}

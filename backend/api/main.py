@@ -23,7 +23,7 @@ from config import (
     RISK_AT_RISK,
     RISK_BLOCKED,
 )
-from db import db, init_schema
+from db import db, ensure_db_ready, init_schema
 from services.alerts import translate_alert
 
 try:
@@ -52,10 +52,10 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
-    """Ensure the SQLite schema exists on every cold start."""
-    init_schema()
+    """Ensure the SQLite database is unpacked or initialized."""
+    ensure_db_ready()
     import logging
-    logging.getLogger("uvicorn").info("DB schema ready.")
+    logging.getLogger("uvicorn").info("DB is ready.")
 
 app.add_middleware(
     CORSMiddleware,

@@ -17,10 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 COPY tools/ ./tools/
-COPY docs/ ./docs/
-# data/ is not in the repo (DB excluded from git).
-# The app auto-creates the SQLite schema on first startup.
-RUN mkdir -p /app/data/processed /app/data/raw /app/data/uploads
+# Copy pre-trained model and compressed database
+COPY data/ ./data/
+RUN mkdir -p /app/data/processed/photos /app/data/raw /app/data/uploads
 
 ENV PYTHONPATH=/app/backend
 EXPOSE 8000
