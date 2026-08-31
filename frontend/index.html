@@ -3,105 +3,185 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NER Logistics &amp; Accessibility Intelligence Platform</title>
+<title>NER Logistics &amp; Accessibility Intelligence Platform — Command Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/vendor/leaflet.css" />
 <style>
   :root {
-    --bg: #0b1020; --panel: #141b31; --panel-2: #1b2340; --line: #26304f;
-    --text: #e6ebff; --muted: #8e9ac4; --accent: #4da3ff;
-    --open: #2ecc71; --risk: #f5a623; --blocked: #ff4d4f; --critical: #b00020;
+    --bg: #070b16;
+    --panel: #0f172a;
+    --panel-2: #16203a;
+    --panel-card: #131c35;
+    --line: #212d4d;
+    --line-focus: #3b82f6;
+    --text: #f1f5f9;
+    --muted: #8b9cb8;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.35);
+    --open: #10b981;
+    --risk: #f59e0b;
+    --blocked: #ef4444;
+    --critical: #dc2626;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
   }
+  
+  /* Glassmorphic Header */
   header {
-    display: flex; align-items: center; gap: 16px; padding: 12px 18px;
-    background: linear-gradient(90deg, #101736, #16204a); border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 16px; padding: 12px 22px;
+    background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 1000;
   }
-  header h1 { font-size: 16px; margin: 0; letter-spacing: .3px; }
-  header .sub { color: var(--muted); font-size: 12px; }
+  .brand-logo {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; box-shadow: 0 0 14px var(--accent-glow); flex-shrink: 0;
+  }
+  header h1 { font-size: 16px; font-weight: 800; letter-spacing: -0.2px; }
+  header .sub { color: var(--muted); font-size: 11px; margin-top: 1px; font-weight: 500; }
   header .spacer { flex: 1; }
+
   .pill {
     background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
-    border-radius: 999px; padding: 4px 10px; font-size: 12px;
+    border-radius: 999px; padding: 5px 12px; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
   }
+  .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--open); box-shadow: 0 0 8px var(--open); }
+
   button, select {
     background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+    border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: all 0.2s;
   }
-  button:hover { border-color: var(--accent); }
-  button.primary { background: var(--accent); color: #04101f; border-color: var(--accent); font-weight: 600; }
-  button:disabled { opacity: .5; cursor: progress; }
+  button:hover { border-color: var(--accent); color: #fff; background: rgba(59,130,246,0.15); }
+  button.primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff;
+    border-color: #3b82f6; box-shadow: 0 4px 14px var(--accent-glow);
+  }
+  button.primary:hover { box-shadow: 0 6px 20px var(--accent-glow); transform: translateY(-1px); }
 
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-          gap: 10px; padding: 12px 18px; }
-  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
-  .kpi .v { font-size: 22px; font-weight: 700; }
-  .kpi .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
-
-  .grid { display: grid; grid-template-columns: 1fr 400px; gap: 12px; padding: 0 18px 18px; }
-  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-  .card h2 { margin: 0; padding: 10px 14px; font-size: 13px; text-transform: uppercase;
-             letter-spacing: .7px; color: var(--muted); border-bottom: 1px solid var(--line);
-             display: flex; align-items: center; gap: 10px; }
-  .card h2 .spacer { flex: 1; }
-  #map { height: 560px; background: #0d1326; }
-  .side { display: flex; flex-direction: column; gap: 12px; }
-  .scroll { max-height: 300px; overflow: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
-  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
-  .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-  .b-open { background: rgba(46,204,113,.15); color: var(--open); }
-  .b-risk { background: rgba(245,166,35,.15); color: var(--risk); }
-  .b-blocked { background: rgba(255,77,79,.18); color: var(--blocked); }
-  .b-critical { background: rgba(176,0,32,.3); color: #ff8a9b; }
-  .bar { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
-  .bar > i { display: block; height: 100%; }
-  .row { display: flex; gap: 8px; align-items: center; padding: 8px 14px; flex-wrap: wrap; }
-  .row label { color: var(--muted); font-size: 12px; }
-  .legend { display: flex; gap: 12px; padding: 8px 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
-  .legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 5px; }
-  .alert { padding: 9px 14px; border-bottom: 1px solid var(--line); }
-  .alert .t { font-weight: 600; }
-  .alert .m { color: var(--muted); font-size: 12px; }
-  .alert .ts { color: var(--muted); font-size: 11px; }
-  .hint { color: var(--muted); font-size: 12px; padding: 8px 14px; }
-  .route { padding: 10px 14px; border-bottom: 1px solid var(--line); }
-  .route .hd { display: flex; justify-content: space-between; align-items: center; }
-  .mono { font-variant-numeric: tabular-nums; }
-  #status { font-size: 12px; color: var(--muted); padding: 0 18px 8px; }
-  a { color: var(--accent); }
-  .nav-tabs { display: flex; gap: 8px; background: #0e152c; padding: 6px 18px; border-bottom: 1px solid var(--line); }
-  .nav-tab { background: transparent; border: 1px solid transparent; color: var(--muted); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all .2s; }
-  .nav-tab:hover { color: var(--text); background: rgba(77,163,255,0.08); }
-  .nav-tab.active { background: var(--panel-2); color: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px rgba(77,163,255,0.2); }
+  /* Navigation Bar */
+  .nav-tabs {
+    display: flex; gap: 8px; background: #0b1122; padding: 8px 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-tab {
+    background: transparent; border: 1.5px solid transparent; color: var(--muted);
+    padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
+  }
+  .nav-tab:hover { color: var(--text); background: rgba(59,130,246,0.08); }
+  .nav-tab.active {
+    background: var(--panel-2); color: var(--accent); border-color: var(--accent);
+    box-shadow: 0 0 16px rgba(59,130,246,0.25);
+  }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
-  .frame-container { padding: 18px; max-width: 1200px; margin: 0 auto; height: calc(100vh - 160px); }
-  .app-frame { width: 100%; height: 100%; min-height: 650px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  .frame-container { padding: 18px; max-width: 1400px; margin: 0 auto; height: calc(100vh - 140px); }
+  .app-frame { width: 100%; height: 100%; min-height: 700px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+
+  /* KPI Grid */
+  .kpis {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px; padding: 16px 22px;
+  }
+  .kpi {
+    background: var(--panel-card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: transform 0.2s;
+  }
+  .kpi:hover { transform: translateY(-2px); border-color: rgba(59,130,246,0.3); }
+  .kpi .v { font-size: 24px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: #fff; }
+  .kpi .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; margin-top: 4px; }
+
+  /* Main Dashboard Grid */
+  .grid { display: grid; grid-template-columns: 1fr 420px; gap: 16px; padding: 0 22px 24px; }
+  @media (max-width: 1180px) { .grid { grid-template-columns: 1fr; } }
+  
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  .card h2 {
+    margin: 0; padding: 12px 18px; font-size: 13px; text-transform: uppercase;
+    letter-spacing: 0.7px; color: var(--muted); border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px; font-weight: 700; background: rgba(22,32,58,0.4);
+  }
+  .card h2 .spacer { flex: 1; }
+  
+  #map { height: 580px; background: #080c18; }
+  .side { display: flex; flex-direction: column; gap: 14px; }
+  .scroll { max-height: 280px; overflow: auto; }
+  
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0,0,0,0.15); }
+  
+  /* Badges & Indicators */
+  .badge { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .b-open { background: rgba(16,185,129,0.15); color: var(--open); border: 1px solid rgba(16,185,129,0.3); }
+  .b-risk { background: rgba(245,158,11,0.15); color: var(--risk); border: 1px solid rgba(245,158,11,0.3); }
+  .b-blocked { background: rgba(239,68,68,0.18); color: var(--blocked); border: 1px solid rgba(239,68,68,0.4); }
+  .b-critical { background: rgba(220,38,38,0.3); color: #ff8a9b; border: 1px solid var(--critical); }
+  
+  .bar { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; }
+  
+  .legend { display: flex; gap: 14px; padding: 10px 18px; font-size: 12px; color: var(--muted); flex-wrap: wrap; background: rgba(0,0,0,0.2); }
+  .legend span { display: flex; align-items: center; }
+  .legend i { display: inline-block; width: 12px; height: 4px; border-radius: 2px; margin-right: 6px; }
+  
+  .alert { padding: 12px 18px; border-bottom: 1px solid var(--line); transition: background 0.2s; }
+  .alert:hover { background: rgba(59,130,246,0.05); }
+  .alert .t { font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .alert .m { color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .alert .ts { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  
+  .hint { color: var(--muted); font-size: 12px; padding: 10px 18px; line-height: 1.45; }
+  .route { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .route .hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  #status { font-size: 12px; color: var(--muted); padding: 0 22px 12px; }
+  
+  /* Quick Corridor Chips */
+  .corridor-chip {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .corridor-chip:hover {
+    background: rgba(59,130,246,0.2); border-color: var(--accent); color: #fff;
+  }
 </style>
 </head>
 <body>
+
 <header>
-  <div>
-    <h1>NER Logistics &amp; Accessibility Intelligence Platform</h1>
-    <div class="sub">Arunachal Pradesh &middot; Assam &middot; Manipur &middot; Meghalaya &middot; Mizoram &middot; Nagaland &middot; Sikkim &middot; Tripura</div>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div class="brand-logo">🌐</div>
+    <div>
+      <h1>NER Logistics &amp; Accessibility Intelligence</h1>
+      <div class="sub">Arunachal Pradesh &middot; Assam &middot; Manipur &middot; Meghalaya &middot; Mizoram &middot; Nagaland &middot; Sikkim &middot; Tripura</div>
+    </div>
   </div>
   <div class="spacer"></div>
-  <span class="pill" id="pillNet">network &ndash;</span>
-  <span class="pill" id="pillModel">model &ndash;</span>
+  <span class="pill" id="pillNet"><span class="pill-dot"></span>network 160k segments</span>
+  <span class="pill" id="pillModel">model AUC 0.89</span>
   <span class="pill" id="pillTime">&ndash;</span>
-  <button class="primary" id="btnRefresh">Refresh risk</button>
+  <button class="primary" id="btnRefresh">⚡ Refresh Live Risk</button>
 </header>
 
 <div class="nav-tabs">
   <button class="nav-tab active" data-tab="tab-command">🗺️ Command Centre</button>
   <button class="nav-tab" data-tab="tab-field">📱 Field Reporter</button>
-  <button class="nav-tab" data-tab="tab-driver">🚛 Driver Tracker</button>
+  <button class="nav-tab" data-tab="tab-driver">🚛 Driver Voice Navigation</button>
   <a href="/docs" target="_blank" class="nav-tab" style="text-decoration:none;margin-left:auto;">📖 API Docs ↗</a>
 </div>
 
@@ -112,52 +192,75 @@
   <div class="grid">
     <div class="card">
       <h2>
-        Accessibility map
+        🗺️ Real-Time Accessibility GIS Map
         <span class="spacer"></span>
-        <select id="selState"><option value="">All states</option></select>
-        <label style="font-size:12px;color:var(--muted)">min risk
-          <input type="range" id="rngRisk" min="0" max="0.9" step="0.05" value="0" style="width:100px">
+        <select id="selState" title="Filter map by state">
+          <option value="">All 8 States</option>
+          <option value="AS">Assam</option>
+          <option value="ML">Meghalaya</option>
+          <option value="AR">Arunachal Pradesh</option>
+          <option value="MN">Manipur</option>
+          <option value="MZ">Mizoram</option>
+          <option value="NL">Nagaland</option>
+          <option value="SK">Sikkim</option>
+          <option value="TR">Tripura</option>
+        </select>
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">Risk Filter
+          <input type="range" id="rngRisk" min="0" max="0.9" step="0.05" value="0" style="width:90px">
         </label>
-        <button id="btnLayer">Route mode: off</button>
+        <button id="btnLayer" class="primary">📍 Route Mode: Active</button>
       </h2>
       <div id="map"></div>
       <div class="legend">
-        <span><i style="background:var(--open)"></i>open</span>
-        <span><i style="background:var(--risk)"></i>at risk (&ge;0.35)</span>
-        <span><i style="background:var(--blocked)"></i>blocked (&ge;0.70)</span>
-        <span><i style="background:#7ad7ff"></i>suggested route</span>
-        <span><i style="background:#ffd166"></i>alternate route</span>
+        <span><i style="background:var(--open)"></i>Open</span>
+        <span><i style="background:var(--risk)"></i>At Risk (&ge;35%)</span>
+        <span><i style="background:var(--blocked)"></i>Blocked (&ge;70%)</span>
+        <span><i style="background:#38bdf8"></i>Primary A* Route</span>
+        <span><i style="background:#facc15"></i>K-Divergent Alternate Bypass</span>
       </div>
       <div class="hint" id="mapHint">
-        Turn on <b>Route mode</b>, then click two points on the map (origin, then destination)
-        to plan a risk-aware journey with alternates.
+        💡 <b>Click any two points on the map</b> (Origin, then Destination) to calculate the safest AI risk-adjusted route and alternate bypass paths.
       </div>
     </div>
 
     <div class="side">
+      <!-- Route Planner Card -->
       <div class="card">
-        <h2>Planned routes <span class="spacer"></span><button id="btnClearRoute">Clear</button></h2>
-        <div style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);background:rgba(0,0,0,0.15)">
-          <span style="font-size:11px;color:var(--muted);width:100%">Quick Corridors:</span>
-          <button style="padding:4px 8px;font-size:11px;" onclick="setQuickRoute(26.18, 91.75, 25.57, 91.89, 'Guwahati → Shillong')">Guwahati → Shillong</button>
-          <button style="padding:4px 8px;font-size:11px;" onclick="setQuickRoute(24.83, 92.78, 23.73, 92.72, 'Silchar → Aizawl')">Silchar → Aizawl</button>
-          <button style="padding:4px 8px;font-size:11px;" onclick="setQuickRoute(25.90, 93.73, 25.67, 94.11, 'Dimapur → Kohima')">Dimapur → Kohima</button>
-          <button style="padding:4px 8px;font-size:11px;" onclick="setQuickRoute(26.75, 94.22, 27.09, 93.61, 'Jorhat → Itanagar')">Jorhat → Itanagar</button>
+        <h2>
+          🛣️ Planned Corridors
+          <span class="spacer"></span>
+          <button id="btnClearRoute" style="padding:4px 10px;font-size:11px;">Clear</button>
+        </h2>
+        <div style="padding:10px 14px; background:rgba(0,0,0,0.18); border-bottom:1px solid var(--line);">
+          <div style="font-size:11px; font-weight:700; color:var(--muted); margin-bottom:6px; text-transform:uppercase;">1-Click Quick Corridors:</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="corridor-chip" onclick="setQuickRoute(26.1820, 91.7480, 25.5788, 91.8933, 'Guwahati → Shillong')">Guwahati → Shillong (NH-6)</button>
+            <button type="button" class="corridor-chip" onclick="setQuickRoute(24.8333, 92.7789, 23.7271, 92.7176, 'Silchar → Aizawl')">Silchar → Aizawl (NH-306)</button>
+            <button type="button" class="corridor-chip" onclick="setQuickRoute(25.9064, 93.7273, 25.6701, 94.1077, 'Dimapur → Kohima')">Dimapur → Kohima (NH-29)</button>
+            <button type="button" class="corridor-chip" onclick="setQuickRoute(26.7509, 94.2037, 27.0844, 93.6053, 'Jorhat → Itanagar')">Jorhat → Itanagar (NH-715)</button>
+            <button type="button" class="corridor-chip" onclick="setQuickRoute(27.3389, 88.6065, 27.5089, 88.5289, 'Gangtok → Mangan')">Gangtok → Mangan (NH-10)</button>
+          </div>
         </div>
-        <div id="routes"><div class="hint">Turn on <b>Route mode</b> &amp; click 2 map points, or click a Quick Corridor above.</div></div>
+        <div id="routes">
+          <div class="hint">Click a Quick Corridor above or tap any 2 points on the map.</div>
+        </div>
       </div>
 
+      <!-- District Connectivity -->
       <div class="card">
-        <h2>District connectivity</h2>
+        <h2>📊 State Connectivity Index</h2>
         <div class="scroll"><table id="tblDistricts">
           <thead><tr><th>State</th><th>Open</th><th>Risk</th><th>Blocked</th><th>Connectivity</th></tr></thead>
           <tbody></tbody>
         </table></div>
       </div>
 
+      <!-- High-risk corridors -->
       <div class="card">
-        <h2>High-risk corridors <span class="spacer"></span>
-          <select id="selLang">
+        <h2>
+          ⚠️ Critical Road Corridors
+          <span class="spacer"></span>
+          <select id="selLang" style="padding:4px 8px; font-size:11px;">
             <option value="en">English</option><option value="hi">हिन्दी</option>
             <option value="as">অসমীয়া</option><option value="bn">বাংলা</option>
             <option value="ne">नेपाली</option><option value="mni">Meitei</option>
@@ -169,19 +272,19 @@
         </table></div>
       </div>
 
+      <!-- Live alerts -->
       <div class="card">
-        <h2>Live alerts</h2>
+        <h2>🚨 Live Disaster &amp; Blockage Alerts</h2>
         <div class="scroll" id="alerts"><div class="hint">No alerts yet.</div></div>
       </div>
 
+      <!-- Active Consignments -->
       <div class="card">
-        <h2>Essential-supply consignments</h2>
+        <h2>🚛 Essential Supply Consignments</h2>
         <div class="scroll"><table id="tblShips">
-          <thead><tr><th>ID</th><th>Commodity</th><th>To</th><th>ETA</th><th>Status</th></tr></thead>
+          <thead><tr><th>ID</th><th>Cargo</th><th>To</th><th>ETA</th><th>Status</th></tr></thead>
           <tbody></tbody>
         </table></div>
-        <div class="hint">Driver app posts GPS to <code>/api/shipments/ping</code>; the response
-        carries re-route advice when the corridor degrades.</div>
       </div>
     </div>
   </div>
@@ -193,7 +296,7 @@
   <div class="frame-container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
       <span style="font-size:13px; color:var(--muted)">Offline-first field hazard observation &amp; photo tagging</span>
-      <a href="/field" target="_blank" style="font-size:13px; color:var(--accent); text-decoration:none;">Open in Full Screen ↗</a>
+      <a href="/field" target="_blank" style="font-size:13px; color:var(--accent); text-decoration:none; font-weight:600;">Open in Full Screen ↗</a>
     </div>
     <iframe src="/field" class="app-frame" title="Field Reporting App"></iframe>
   </div>
@@ -203,8 +306,8 @@
 <div id="tab-driver" class="tab-content">
   <div class="frame-container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <span style="font-size:13px; color:var(--muted)">Consignment GPS tracking &amp; dynamic corridor divert advice</span>
-      <a href="/driver" target="_blank" style="font-size:13px; color:var(--accent); text-decoration:none;">Open in Full Screen ↗</a>
+      <span style="font-size:13px; color:var(--muted)">Driver Navigation with real-time AI Voice Assistant</span>
+      <a href="/driver" target="_blank" style="font-size:13px; color:var(--accent); text-decoration:none; font-weight:600;">Open in Full Screen ↗</a>
     </div>
     <iframe src="/driver" class="app-frame" title="Driver Tracking App"></iframe>
   </div>
@@ -213,7 +316,7 @@
 <script src="/static/vendor/leaflet.js"></script>
 <script src="/static/app.js"></script>
 <script>
-  // Tab switching logic
+  // Tab switcher
   document.querySelectorAll('.nav-tab[data-tab]').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -222,7 +325,7 @@
       const target = document.getElementById(tab.dataset.tab);
       if (target) target.classList.add('active');
       if (tab.dataset.tab === 'tab-command' && window.map) {
-        setTimeout(() => window.map.invalidateSize(), 100);
+        setTimeout(() => window.map.invalidateSize(), 150);
       }
     });
   });

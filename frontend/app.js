@@ -260,19 +260,40 @@ async function refreshAll() {
   b.disabled = false; b.textContent = "Refresh risk";
 }
 
+const STATE_CENTERS = {
+  "AS": [26.2006, 92.9376, 7],
+  "ML": [25.5788, 91.8933, 8],
+  "AR": [27.0844, 93.6053, 7],
+  "MN": [24.8170, 93.9368, 8],
+  "MZ": [23.7271, 92.7176, 8],
+  "NL": [25.6701, 94.1077, 8],
+  "SK": [27.3389, 88.6065, 8],
+  "TR": [23.8315, 91.2868, 8]
+};
+
 function bindUi() {
+  routeMode = true;
   $("#btnRefresh").onclick = refreshAll;
   $("#btnClearRoute").onclick = clearRoute;
-  $("#selState").onchange = (e) => { state.stateFilter = e.target.value; loadEdges(); };
+  $("#selState").onchange = (e) => {
+    state.stateFilter = e.target.value;
+    if (STATE_CENTERS[state.stateFilter]) {
+      const [lat, lon, zoom] = STATE_CENTERS[state.stateFilter];
+      map.flyTo([lat, lon], zoom, { duration: 1.2 });
+    } else {
+      map.flyTo([26.0, 92.5], 7, { duration: 1.2 });
+    }
+    loadEdges();
+  };
   $("#rngRisk").oninput = (e) => { state.risk = +e.target.value; };
   $("#rngRisk").onchange = loadEdges;
   $("#selLang").onchange = translateCorridor;
   $("#btnLayer").onclick = (e) => {
     routeMode = !routeMode;
-    e.target.textContent = "Route mode: " + (routeMode ? "on" : "off");
+    e.target.textContent = "📍 Route Mode: " + (routeMode ? "Active" : "Off");
     e.target.classList.toggle("primary", routeMode);
     $("#mapHint").innerHTML = routeMode
-      ? "<b>Route mode on</b> — click the origin, then the destination."
+      ? "💡 <b>Route mode active</b> — Click origin on the map, then destination to calculate safest route & alternates."
       : "Turn on <b>Route mode</b>, then click two points on the map.";
   };
 }

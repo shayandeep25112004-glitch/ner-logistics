@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <meta name="theme-color" content="#0b1020" />
-<title>NER Driver — Consignment Navigation &amp; Risk Avoidance</title>
+<title>NER Driver — AI Voice Navigation &amp; Hazard Alert System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
@@ -47,7 +47,7 @@
   }
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand-icon {
-    width: 32px; height: 32px; border-radius: 8px;
+    width: 34px; height: 34px; border-radius: 8px;
     background: linear-gradient(135deg, #10b981, #059669);
     display: flex; align-items: center; justify-content: center;
     font-size: 18px; box-shadow: 0 0 12px rgba(16,185,129,0.35);
@@ -55,8 +55,9 @@
   header h1 { font-size: 15px; font-weight: 700; }
   header .sub { font-size: 11px; color: var(--muted); }
   
+  .header-actions { display: flex; align-items: center; gap: 8px; }
   .status-pill {
-    font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
     background: rgba(16,185,129,0.15); border: 1px solid var(--ok); color: var(--ok);
     display: flex; align-items: center; gap: 6px;
   }
@@ -75,7 +76,40 @@
   .card-title {
     font-size: 12px; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
   }
+
+  /* Voice Assistant HUD Banner */
+  .voice-bar {
+    background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(16,185,129,0.15));
+    border: 1.5px solid rgba(59,130,246,0.4);
+    border-radius: 14px; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 14px; box-shadow: 0 4px 16px rgba(59,130,246,0.15);
+  }
+  .voice-meta { display: flex; align-items: center; gap: 10px; }
+  .voice-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .voice-text { font-size: 13px; font-weight: 700; color: #fff; }
+  .voice-sub { font-size: 11px; color: var(--muted); }
+  
+  .equalizer { display: flex; align-items: center; gap: 3px; height: 16px; }
+  .eq-bar { width: 3px; background: var(--accent); border-radius: 2px; height: 4px; transition: height 0.15s; }
+  .equalizer.active .eq-bar:nth-child(1) { animation: eq 0.6s infinite ease-in-out; }
+  .equalizer.active .eq-bar:nth-child(2) { animation: eq 0.8s infinite ease-in-out 0.1s; }
+  .equalizer.active .eq-bar:nth-child(3) { animation: eq 0.5s infinite ease-in-out 0.2s; }
+  .equalizer.active .eq-bar:nth-child(4) { animation: eq 0.7s infinite ease-in-out 0.3s; }
+  @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 16px; background: var(--ok); } }
+
+  .btn-voice-toggle {
+    background: var(--panel-input); border: 1px solid var(--line); color: var(--text);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-voice-toggle.active { background: rgba(16,185,129,0.2); border-color: var(--ok); color: var(--ok); }
 
   /* Telemetry HUD */
   .telemetry-grid {
@@ -93,23 +127,32 @@
   .advice-box {
     border-radius: 14px; padding: 16px; margin-bottom: 14px;
     border: 1.5px solid var(--line); background: var(--panel-input);
-    transition: all 0.3s;
+    transition: all 0.3s; position: relative;
   }
   .advice-box.ok {
     border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.08);
   }
   .advice-box.divert {
     border-color: var(--warn); background: rgba(245,158,11,0.12);
-    box-shadow: 0 0 20px rgba(245,158,11,0.2);
+    box-shadow: 0 0 24px rgba(245,158,11,0.25);
+    animation: flashWarn 2s infinite;
   }
   .advice-box.blocked {
     border-color: var(--bad); background: rgba(239,68,68,0.15);
-    box-shadow: 0 0 20px rgba(239,68,68,0.3);
+    box-shadow: 0 0 24px rgba(239,68,68,0.35);
   }
+  @keyframes flashWarn { 0%, 100% { border-color: var(--warn); } 50% { border-color: #fbbf24; } }
+  
   .advice-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .advice-desc { font-size: 13px; color: var(--text); line-height: 1.45; }
+  .btn-hear-alert {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer;
+  }
+  .btn-hear-alert:hover { background: rgba(255,255,255,0.2); }
 
-  /* Forms & Controls */
+  /* Controls */
   .row { display: flex; gap: 10px; }
   .form-group { margin-bottom: 12px; flex: 1; }
   label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
@@ -158,20 +201,49 @@
   <div class="brand">
     <div class="brand-icon">🚛</div>
     <div>
-      <h1>NER Driver Navigation</h1>
-      <div class="sub">Dynamic Hazard Rerouting &amp; Consignment Tracking</div>
+      <h1>NER Driver Voice Navigation</h1>
+      <div class="sub">Audio Hazard Warnings &amp; Dynamic Rerouting</div>
     </div>
   </div>
-  <div class="status-pill" id="tripPill">
-    <span class="pulse-dot"></span>
-    <span id="tripPillText">Active Run</span>
+  <div class="header-actions">
+    <div class="status-pill" id="tripPill">
+      <span class="pulse-dot"></span>
+      <span id="tripPillText">Active Run</span>
+    </div>
   </div>
 </header>
 
 <main>
+  <!-- Voice Assistant Status Bar -->
+  <div class="voice-bar">
+    <div class="voice-meta">
+      <div class="voice-icon" id="voiceIcon">🎙️</div>
+      <div>
+        <div class="voice-text">AI Voice Co-Pilot: Active</div>
+        <div class="voice-sub" id="voiceSub">Speaks instant hazard alerts &amp; divert advice</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div class="equalizer" id="equalizer">
+        <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
+      </div>
+      <button type="button" class="btn-voice-toggle active" id="btnVoiceToggle" onclick="toggleVoice()">
+        🔊 Audio On
+      </button>
+    </div>
+  </div>
+
   <!-- Telemetry HUD -->
   <div class="card">
-    <div class="card-title">Live Trip Telemetry</div>
+    <div class="card-title">
+      <span>Live Trip Telemetry</span>
+      <select id="selVoiceLang" style="width:auto; padding:4px 8px; font-size:11px;" onchange="changeVoiceLang()">
+        <option value="en-IN">English (India)</option>
+        <option value="hi-IN">हिन्दी (Hindi)</option>
+        <option value="bn-IN">বাংলা (Bengali/Assamese)</option>
+      </select>
+    </div>
+    
     <div class="telemetry-grid">
       <div class="telem-box">
         <div class="telem-val" id="etaVal">74</div>
@@ -196,6 +268,9 @@
       <div class="advice-desc" id="adviceDesc">
         Proceed on NH-6. Weather conditions nominal. Estimated arrival at Shillong depot: <b>1h 14m</b>.
       </div>
+      <button type="button" class="btn-hear-alert" onclick="speakCurrentAdvice()">
+        🔊 Read Aloud
+      </button>
     </div>
 
     <div class="gps-box">
@@ -207,8 +282,8 @@
       <button type="button" class="btn-primary" style="flex:1;" id="btnStep" onclick="simulateNextStep()">
         ⏩ Simulate GPS Step
       </button>
-      <button type="button" class="btn-ghost" style="flex:1; margin:0;" onclick="simulateHazard()">
-        ⚠️ Trigger Landslide Event
+      <button type="button" class="btn-ghost" style="flex:1; margin:0; border-color:var(--warn); color:var(--warn);" onclick="simulateHazard()">
+        ⚠️ Trigger Landslide Warning
       </button>
     </div>
   </div>
@@ -274,14 +349,110 @@
 
 <script>
   let stepIndex = 0;
+  let voiceEnabled = true;
+  let selectedLang = "en-IN";
+  let lastSpokenText = "";
+
   const demoTrajectory = [
-    { lat: 26.1820, lon: 91.7480, dist: 98, eta: 110, risk: 0.12, advice: "ok", desc: "Departing Guwahati depot on NH-27. Clear weather." },
-    { lat: 26.0421, lon: 91.8105, dist: 78, eta: 86, risk: 0.14, advice: "ok", desc: "Crossing Jorabat junction into Meghalaya hills (NH-6). Stable corridor." },
-    { lat: 25.8820, lon: 91.8540, dist: 52, eta: 58, risk: 0.18, advice: "ok", desc: "Nongpoh bypass clear. Average speed 46 km/h." },
-    { lat: 25.7140, lon: 91.8820, dist: 28, eta: 34, risk: 0.22, advice: "ok", desc: "Approaching Umiam Lake section. Light mountain mist." },
-    { lat: 25.5788, lon: 91.8933, dist: 0, eta: 0, risk: 0.05, advice: "delivered", desc: "🎉 Consignment delivered at Shillong Civil Hospital!" }
+    { 
+      lat: 26.1820, lon: 91.7480, dist: 98, eta: 110, risk: 0.12, advice: "ok", 
+      desc: "Departing Guwahati central depot on NH-27. Weather is clear.",
+      speech: "Departing Guwahati central depot on National Highway 27. Weather conditions are clear. Route is open." 
+    },
+    { 
+      lat: 26.0421, lon: 91.8105, dist: 78, eta: 86, risk: 0.14, advice: "ok", 
+      desc: "Crossing Jorabat junction into Meghalaya hills (NH-6). Corridor is stable.",
+      speech: "Crossing Jorabat junction into Meghalaya hills on National Highway 6. Hill corridor is open and stable." 
+    },
+    { 
+      lat: 25.8820, lon: 91.8540, dist: 52, eta: 58, risk: 0.18, advice: "ok", 
+      desc: "Nongpoh bypass clear. Average speed 46 km/h. No hazards reported.",
+      speech: "Nongpoh bypass clear. Average speed 46 kilometers per hour. Proceed smoothly." 
+    },
+    { 
+      lat: 25.7140, lon: 91.8820, dist: 28, eta: 34, risk: 0.22, advice: "ok", 
+      desc: "Approaching Umiam Lake section. Mountain visibility good.",
+      speech: "Approaching Umiam Lake section. Road surface clear. 28 kilometers remaining." 
+    },
+    { 
+      lat: 25.5788, lon: 91.8933, dist: 0, eta: 0, risk: 0.05, advice: "delivered", 
+      desc: "🎉 Consignment delivered at Shillong Civil Hospital!",
+      speech: "Mission accomplished. Consignment successfully delivered at Shillong Civil Hospital." 
+    }
   ];
 
+  // ---------------------------------------------------- Voice Assistant Engine ---- //
+  function playAudioTone(freq = 600, duration = 0.15) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch (e) {}
+  }
+
+  function speak(text, isDanger = false) {
+    if (!voiceEnabled || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+
+    if (isDanger) {
+      playAudioTone(880, 0.25);
+      setTimeout(() => playAudioTone(580, 0.25), 150);
+    }
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = selectedLang;
+    utter.rate = 0.95;
+    utter.pitch = isDanger ? 1.1 : 1.0;
+
+    // Animate equalizer while speaking
+    const eq = document.getElementById('equalizer');
+    utter.onstart = () => { eq.classList.add('active'); };
+    utter.onend = () => { eq.classList.remove('active'); };
+    utter.onerror = () => { eq.classList.remove('active'); };
+
+    window.speechSynthesis.speak(utter);
+    lastSpokenText = text;
+  }
+
+  function toggleVoice() {
+    voiceEnabled = !voiceEnabled;
+    const btn = document.getElementById('btnVoiceToggle');
+    if (voiceEnabled) {
+      btn.className = "btn-voice-toggle active";
+      btn.innerHTML = "🔊 Audio On";
+      document.getElementById('voiceSub').textContent = "Speaks instant hazard alerts & divert advice";
+      speak("Voice co-pilot activated.");
+    } else {
+      window.speechSynthesis && window.speechSynthesis.cancel();
+      btn.className = "btn-voice-toggle";
+      btn.innerHTML = "🔇 Audio Muted";
+      document.getElementById('voiceSub').textContent = "Audio warnings currently muted";
+    }
+  }
+
+  function changeVoiceLang() {
+    selectedLang = document.getElementById('selVoiceLang').value;
+    speak(selectedLang === "hi-IN" ? "आवाज सहायक चालू है।" : "Voice assistant language updated.");
+  }
+
+  function speakCurrentAdvice() {
+    if (lastSpokenText) {
+      speak(lastSpokenText);
+    } else {
+      const desc = document.getElementById('adviceDesc').innerText;
+      speak(desc);
+    }
+  }
+
+  // ---------------------------------------------------- Mission Simulation ---- //
   function loadMission(id, cargo, orig, dest, lat, lon, veh) {
     document.getElementById('cid').value = id;
     document.getElementById('cargo').value = cargo;
@@ -290,12 +461,15 @@
     document.getElementById('veh').value = veh;
     stepIndex = 0;
     renderStep(demoTrajectory[0]);
+    speak(`New mission loaded: Consignment ${id} from ${orig} to ${dest}.`);
   }
 
   function simulateNextStep() {
     stepIndex = (stepIndex + 1) % demoTrajectory.length;
-    renderStep(demoTrajectory[stepIndex]);
-    pingBackend(demoTrajectory[stepIndex]);
+    const step = demoTrajectory[stepIndex];
+    renderStep(step);
+    pingBackend(step);
+    speak(step.speech, false);
   }
 
   function simulateHazard() {
@@ -309,6 +483,9 @@
     desc.innerHTML = "Landslide verified at km 48 on NH-6. <b>Take SH-14 Mawlyngkhung Bypass</b>. Alternate route avoids 2.5 hr roadblock and saves <b>48 min</b>.";
     riskVal.textContent = "78%";
     riskVal.style.color = "var(--bad)";
+
+    const alertMsg = "Danger Ahead. Landslide detected on National Highway 6. Take State Highway 14 bypass immediately to save 48 minutes.";
+    speak(alertMsg, true);
   }
 
   function renderStep(s) {
@@ -355,7 +532,7 @@
   }
 
   function startTracking() {
-    alert("📡 Live telemetry stream connected! Simulating GPS pings to NER Command Centre.");
+    speak("Live GPS telemetry stream active. Monitoring road conditions.");
     simulateNextStep();
   }
 </script>
