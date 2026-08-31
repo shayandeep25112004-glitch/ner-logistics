@@ -24,9 +24,20 @@ from config import (
     RISK_BLOCKED,
 )
 from db import db, init_schema
-from routing.router import get_router, haversine_km
 from services.alerts import translate_alert
-from services.risk import get_latest_edge_risks, refresh_risk_scores
+
+try:
+    from routing.router import get_router, haversine_km
+    from services.risk import get_latest_edge_risks, refresh_risk_scores
+    _ROUTER_AVAILABLE = True
+except Exception as _e:
+    import warnings
+    warnings.warn(f"Router/risk unavailable (empty DB?): {_e}")
+    _ROUTER_AVAILABLE = False
+    def get_router(): return None  # type: ignore
+    def haversine_km(*a, **kw): return 0.0  # type: ignore
+    def get_latest_edge_risks(): return {}  # type: ignore
+    def refresh_risk_scores(): return {"status": "no data"}  # type: ignore
 
 FRONTEND_DIR = BASE_DIR / "frontend"
 PHOTOS_DIR = PROCESSED_DIR / "photos"
@@ -37,6 +48,14 @@ app = FastAPI(
     description="Real-time road accessibility, landslide/flood disruption prediction, and risk-aware routing for India's North Eastern Region.",
     version="1.0.0",
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    """Ensure the SQLite schema exists on every cold start."""
+    init_schema()
+    import logging
+    logging.getLogger("uvicorn").info("DB schema ready.")
 
 app.add_middleware(
     CORSMiddleware,

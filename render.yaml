@@ -5,7 +5,7 @@ services:
     region: singapore
     plan: free
     buildCommand: pip install -r requirements-runtime.txt
-    startCommand: cd backend && python -m db && python -m uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend && python -m uvicorn api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
