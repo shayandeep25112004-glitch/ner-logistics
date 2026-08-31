@@ -2,227 +2,363 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <meta name="theme-color" content="#0b1020" />
-<title>NER Driver — consignment tracking</title>
+<title>NER Driver — Consignment Navigation &amp; Risk Avoidance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0b1020; --panel:#141b31; --line:#26304f; --text:#e6ebff; --muted:#8e9ac4;
-          --accent:#4da3ff; --ok:#2ecc71; --warn:#f5a623; --bad:#ff4d4f; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text);
-         font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  header { padding:14px 16px; background:#101736; border-bottom:1px solid var(--line);
-           display:flex; gap:10px; align-items:center; }
-  header h1 { font-size:15px; margin:0; flex:1; }
-  .net { font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); }
-  .net.on { color:var(--ok); border-color:var(--ok); } .net.off { color:var(--warn); border-color:var(--warn); }
-  main { padding:14px 16px 90px; max-width:640px; margin:0 auto; }
+  :root {
+    --bg: #080c18;
+    --panel: #11172a;
+    --panel-card: #151d36;
+    --panel-input: #0c1224;
+    --line: #222e4d;
+    --line-focus: #4da3ff;
+    --text: #f0f4ff;
+    --muted: #8c9bbd;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.35);
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #182348 0%, var(--bg) 65%);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    padding-bottom: 60px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    background: rgba(14, 20, 39, 0.88);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; box-shadow: 0 0 12px rgba(16,185,129,0.35);
+  }
+  header h1 { font-size: 15px; font-weight: 700; }
+  header .sub { font-size: 11px; color: var(--muted); }
   
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px;
-          padding:14px; margin-bottom:12px; }
-  label { display:block; color:var(--muted); font-size:12px; margin:10px 0 5px;
-          text-transform:uppercase; letter-spacing:.5px; }
-  input, select { width:100%; background:#0d1326; color:var(--text); border:1px solid var(--line);
-                  border-radius:10px; padding:11px; font-size:15px; }
-  button { width:100%; padding:13px; border-radius:12px; border:1px solid var(--line);
-           background:var(--accent); color:#04101f; font-size:15px; font-weight:700; cursor:pointer; }
-  button.ghost { background:transparent; color:var(--text); }
-  .big { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
-  .muted { color:var(--muted); font-size:12px; }
-  .adv { border-radius:12px; padding:13px; margin-top:10px; display:none; }
-  .adv.go { display:block; background:rgba(245,166,35,.14); border:1px solid var(--warn); }
-  .adv.block { display:block; background:rgba(255,77,79,.14); border:1px solid var(--bad); }
-  .adv.ok { display:block; background:rgba(46,204,113,.10); border:1px solid var(--ok); }
-  .row { display:flex; gap:10px; }
-  .stat { flex:1; text-align:center; }
-  .stat .l { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  .status-pill {
+    font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px;
+    background: rgba(16,185,129,0.15); border: 1px solid var(--ok); color: var(--ok);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: pulse 2s infinite; }
+  @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+  main { max-width: 620px; margin: 20px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+  .card-title {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px;
+  }
+
+  /* Telemetry HUD */
+  .telemetry-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;
+  }
+  .telem-box {
+    background: var(--panel-input); border: 1.5px solid var(--line);
+    border-radius: 12px; padding: 14px 10px; text-align: center;
+  }
+  .telem-val { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 800; color: #fff; }
+  .telem-unit { font-size: 11px; font-weight: 600; color: var(--accent); margin-top: 2px; }
+  .telem-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; }
+
+  /* Dynamic Advice Banner */
+  .advice-box {
+    border-radius: 14px; padding: 16px; margin-bottom: 14px;
+    border: 1.5px solid var(--line); background: var(--panel-input);
+    transition: all 0.3s;
+  }
+  .advice-box.ok {
+    border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.08);
+  }
+  .advice-box.divert {
+    border-color: var(--warn); background: rgba(245,158,11,0.12);
+    box-shadow: 0 0 20px rgba(245,158,11,0.2);
+  }
+  .advice-box.blocked {
+    border-color: var(--bad); background: rgba(239,68,68,0.15);
+    box-shadow: 0 0 20px rgba(239,68,68,0.3);
+  }
+  .advice-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .advice-desc { font-size: 13px; color: var(--text); line-height: 1.45; }
+
+  /* Forms & Controls */
+  .row { display: flex; gap: 10px; }
+  .form-group { margin-bottom: 12px; flex: 1; }
+  label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  input, select {
+    width: 100%; background: var(--panel-input); color: var(--text); border: 1.5px solid var(--line);
+    border-radius: 10px; padding: 11px 12px; font-size: 14px; font-family: inherit;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--line-focus); }
+
+  /* Buttons */
+  .btn-primary {
+    width: 100%; padding: 14px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(16,185,129,0.3); transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary:hover { transform: translateY(-1px); }
+  
+  .btn-ghost {
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    width: 100%; margin-top: 8px; transition: all 0.2s;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip {
+    background: var(--panel-input); border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 12px; font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px; font-weight: 500;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); background: rgba(59,130,246,0.1); }
+  .chip.active { border-color: var(--accent); color: #fff; background: rgba(59,130,246,0.2); }
+
+  /* GPS Stream Box */
+  .gps-box {
+    background: var(--panel-input); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; font-size: 12px; color: var(--muted); display: flex; align-items: center; justify-content: space-between;
+  }
 </style>
 </head>
 <body>
+
 <header>
-  <h1>Driver app — essential supply run</h1>
-  <span class="net" id="net">checking…</span>
+  <div class="brand">
+    <div class="brand-icon">🚛</div>
+    <div>
+      <h1>NER Driver Navigation</h1>
+      <div class="sub">Dynamic Hazard Rerouting &amp; Consignment Tracking</div>
+    </div>
+  </div>
+  <div class="status-pill" id="tripPill">
+    <span class="pulse-dot"></span>
+    <span id="tripPillText">Active Run</span>
+  </div>
 </header>
 
 <main>
+  <!-- Telemetry HUD -->
   <div class="card">
-    <label>Consignment ID</label>
-    <input id="sid" placeholder="e.g. MED-2026-0042" />
-    <label>Commodity</label>
-    <select id="commodity">
-      <option value="medicine">Medicines</option>
-      <option value="food">Food supplies</option>
-      <option value="construction">Construction material</option>
-      <option value="agri_produce">Agricultural produce</option>
-      <option value="fuel">Fuel</option>
-    </select>
-    <div class="row">
-      <div style="flex:1"><label>From</label><input id="origin" placeholder="Guwahati" /></div>
-      <div style="flex:1"><label>To (name)</label><input id="destination" placeholder="Tawang" /></div>
+    <div class="card-title">Live Trip Telemetry</div>
+    <div class="telemetry-grid">
+      <div class="telem-box">
+        <div class="telem-val" id="etaVal">74</div>
+        <div class="telem-unit">MINUTES</div>
+        <div class="telem-lbl">Est. Arrival</div>
+      </div>
+      <div class="telem-box">
+        <div class="telem-val" id="distVal">68</div>
+        <div class="telem-unit">KILOMETRES</div>
+        <div class="telem-lbl">Remaining</div>
+      </div>
+      <div class="telem-box">
+        <div class="telem-val" id="riskVal" style="color:var(--ok)">14%</div>
+        <div class="telem-unit">LOW RISK</div>
+        <div class="telem-lbl">Corridor Safety</div>
+      </div>
     </div>
-    <div class="row">
-      <div style="flex:1"><label>Destination lat</label><input id="dlat" type="number" step="0.0001" value="27.5860" /></div>
-      <div style="flex:1"><label>Destination lon</label><input id="dlon" type="number" step="0.0001" value="91.8590" /></div>
+
+    <!-- Active Routing & Divert Advice -->
+    <div class="advice-box ok" id="adviceBox">
+      <div class="advice-title" id="adviceTitle">✅ Primary Route Clear</div>
+      <div class="advice-desc" id="adviceDesc">
+        Proceed on NH-6. Weather conditions nominal. Estimated arrival at Shillong depot: <b>1h 14m</b>.
+      </div>
     </div>
-    <div class="row">
-      <div style="flex:1"><label>Vehicle no.</label><input id="veh" placeholder="AS-01-AB-1234" /></div>
-      <div style="flex:1"><label>Driver phone</label><input id="phone" placeholder="+91…" /></div>
+
+    <div class="gps-box">
+      <span>📍 GPS: <b id="gpsCoords" style="color:var(--text); font-family:'JetBrains Mono'">26.0421, 91.8105</b></span>
+      <span id="gpsSpeed">Speed: <b>52 km/h</b></span>
     </div>
-    <button id="btnStart">Register &amp; start tracking</button>
+
+    <div class="row" style="margin-top:12px;">
+      <button type="button" class="btn-primary" style="flex:1;" id="btnStep" onclick="simulateNextStep()">
+        ⏩ Simulate GPS Step
+      </button>
+      <button type="button" class="btn-ghost" style="flex:1; margin:0;" onclick="simulateHazard()">
+        ⚠️ Trigger Landslide Event
+      </button>
+    </div>
   </div>
 
+  <!-- Consignment Mission Selector -->
   <div class="card">
-    <div class="row">
-      <div class="stat"><div class="big" id="eta">—</div><div class="l">ETA minutes</div></div>
-      <div class="stat"><div class="big" id="dist">—</div><div class="l">km left</div></div>
-      <div class="stat"><div class="big" id="risk">—</div><div class="l">risk ahead</div></div>
+    <div class="card-title">Quick Demo Consignments (Click to Load)</div>
+    <div class="chips">
+      <div class="chip active" onclick="loadMission('MED-2026-0842', 'medicine', 'Guwahati Central Depot', 'Shillong Civil Hospital', 25.5788, 91.8933, 'AS-01-AX-9921')">
+        🚑 Meds: Guwahati → Shillong
+      </div>
+      <div class="chip" onclick="loadMission('FOOD-2026-0119', 'food', 'Silchar FCI Hub', 'Aizawl Distribution Centre', 23.7271, 92.7176, 'MZ-01-C-4412')">
+        🌾 Food: Silchar → Aizawl
+      </div>
+      <div class="chip" onclick="loadMission('FUEL-2026-0304', 'fuel', 'Dimapur Depot', 'Kohima Power Station', 25.6701, 94.1077, 'NL-07-F-7731')">
+        ⛽ Fuel: Dimapur → Kohima
+      </div>
     </div>
-    <div class="muted" id="fix">Not tracking yet.</div>
-    <div class="adv" id="advice"></div>
-    <button class="ghost" id="btnStop">Stop tracking</button>
-  </div>
 
-  <div class="card">
-    <label>Offline note</label>
-    <div class="muted">
-      Pings are buffered on the device while there is no signal and flushed in order when
-      the connection returns, so the control room still sees the full trace afterwards.
+    <div class="row">
+      <div class="form-group">
+        <label>Consignment ID</label>
+        <input type="text" id="cid" value="MED-2026-0842" />
+      </div>
+      <div class="form-group">
+        <label>Cargo Priority</label>
+        <select id="cargo">
+          <option value="medicine">💊 Critical Medicines (Priority 1)</option>
+          <option value="food">🌾 Essential Food Supplies (Priority 1)</option>
+          <option value="fuel">⛽ Fuel &amp; LPG (Priority 2)</option>
+          <option value="construction">🏗️ Construction Material (Priority 3)</option>
+        </select>
+      </div>
     </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label>Origin</label>
+        <input type="text" id="origin" value="Guwahati Central Depot" />
+      </div>
+      <div class="form-group">
+        <label>Destination</label>
+        <input type="text" id="dest" value="Shillong Civil Hospital" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label>Vehicle Plate</label>
+        <input type="text" id="veh" value="AS-01-AX-9921" />
+      </div>
+      <div class="form-group">
+        <label>Driver Phone</label>
+        <input type="text" id="phone" value="+91 98640 12345" />
+      </div>
+    </div>
+
+    <button type="button" class="btn-primary" id="btnStart" onclick="startTracking()">
+      🚀 Start Live Consignment Stream
+    </button>
   </div>
 </main>
 
 <script>
-/*
- * Driver app: registers a consignment, then streams GPS pings.
- *
- * The interesting part is the response to each ping: the server re-scores the remaining
- * corridor and tells the driver whether to divert *before* reaching the blocked stretch,
- * with the minutes saved. Pings made while offline are buffered in IndexedDB and replayed
- * in chronological order.
- */
-const DB = "ner-driver";
-let db = null, timer = null, lastFix = null;
+  let stepIndex = 0;
+  const demoTrajectory = [
+    { lat: 26.1820, lon: 91.7480, dist: 98, eta: 110, risk: 0.12, advice: "ok", desc: "Departing Guwahati depot on NH-27. Clear weather." },
+    { lat: 26.0421, lon: 91.8105, dist: 78, eta: 86, risk: 0.14, advice: "ok", desc: "Crossing Jorabat junction into Meghalaya hills (NH-6). Stable corridor." },
+    { lat: 25.8820, lon: 91.8540, dist: 52, eta: 58, risk: 0.18, advice: "ok", desc: "Nongpoh bypass clear. Average speed 46 km/h." },
+    { lat: 25.7140, lon: 91.8820, dist: 28, eta: 34, risk: 0.22, advice: "ok", desc: "Approaching Umiam Lake section. Light mountain mist." },
+    { lat: 25.5788, lon: 91.8933, dist: 0, eta: 0, risk: 0.05, advice: "delivered", desc: "🎉 Consignment delivered at Shillong Civil Hospital!" }
+  ];
 
-function idb() {
-  return new Promise((res, rej) => {
-    const r = indexedDB.open(DB, 1);
-    r.onupgradeneeded = () => {
-      const d = r.result;
-      if (!d.objectStoreNames.contains("pings")) d.createObjectStore("pings", { keyPath: "uuid", autoIncrement: true });
-    };
-    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-  });
-}
-const store = (m = "readonly") => db.transaction("pings", m).objectStore("pings");
-const rq = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  function loadMission(id, cargo, orig, dest, lat, lon, veh) {
+    document.getElementById('cid').value = id;
+    document.getElementById('cargo').value = cargo;
+    document.getElementById('origin').value = orig;
+    document.getElementById('dest').value = dest;
+    document.getElementById('veh').value = veh;
+    stepIndex = 0;
+    renderStep(demoTrajectory[0]);
+  }
 
-function net(on) {
-  const el = document.getElementById("net");
-  el.textContent = on ? "online" : "offline"; el.className = "net " + (on ? "on" : "off");
-}
+  function simulateNextStep() {
+    stepIndex = (stepIndex + 1) % demoTrajectory.length;
+    renderStep(demoTrajectory[stepIndex]);
+    pingBackend(demoTrajectory[stepIndex]);
+  }
 
-async function start() {
-  const id = document.getElementById("sid").value.trim() ||
-    ("RUN-" + Date.now().toString().slice(-6));
-  const body = {
-    id,
-    commodity: document.getElementById("commodity").value,
-    origin: document.getElementById("origin").value,
-    destination: document.getElementById("destination").value,
-    dest_lat: +document.getElementById("dlat").value,
-    dest_lon: +document.getElementById("dlon").value,
-    vehicle_no: document.getElementById("veh").value,
-    driver_phone: document.getElementById("phone").value,
-    driver_name: "",
-    priority: body_priority(),
-  };
-  try {
-    const r = await fetch("/api/shipments", { method: "POST",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!r.ok) throw new Error(await r.text());
-  } catch (e) { /* offline: we still track, and register on reconnect */ }
+  function simulateHazard() {
+    const box = document.getElementById('adviceBox');
+    const title = document.getElementById('adviceTitle');
+    const desc = document.getElementById('adviceDesc');
+    const riskVal = document.getElementById('riskVal');
 
-  document.getElementById("sid").value = id;
-  timer = setInterval(track, 15000);
-  track();
-}
+    box.className = "advice-box divert";
+    title.innerHTML = "⚠️ DIVERT ADVICE: Landslide Detected Ahead";
+    desc.innerHTML = "Landslide verified at km 48 on NH-6. <b>Take SH-14 Mawlyngkhung Bypass</b>. Alternate route avoids 2.5 hr roadblock and saves <b>48 min</b>.";
+    riskVal.textContent = "78%";
+    riskVal.style.color = "var(--bad)";
+  }
 
-function body_priority() {
-  return document.getElementById("commodity").value === "medicine" ? 1 : 2;
-}
+  function renderStep(s) {
+    document.getElementById('etaVal').textContent = s.eta;
+    document.getElementById('distVal').textContent = s.dist;
+    const rPct = Math.round(s.risk * 100);
+    const riskEl = document.getElementById('riskVal');
+    riskEl.textContent = rPct + "%";
+    riskEl.style.color = s.risk > 0.4 ? "var(--bad)" : s.risk > 0.25 ? "var(--warn)" : "var(--ok)";
 
-function track() {
-  if (!navigator.geolocation) { document.getElementById("fix").textContent = "No GPS on this device"; return; }
-  navigator.geolocation.getCurrentPosition(async (p) => {
-    lastFix = { lat: p.coords.latitude, lon: p.coords.longitude,
-                speed_kmph: (p.coords.speed || 0) * 3.6, heading: p.coords.heading || 0 };
-    document.getElementById("fix").textContent =
-      `GPS ${lastFix.lat.toFixed(5)}, ${lastFix.lon.toFixed(5)} ±${Math.round(p.coords.accuracy)} m · ${new Date().toLocaleTimeString()}`;
-    await sendPing(lastFix);
-  }, (e) => { document.getElementById("fix").textContent = "GPS: " + e.message; },
-  { enableHighAccuracy: true, timeout: 15000 });
-}
+    document.getElementById('gpsCoords').textContent = `${s.lat.toFixed(4)}, ${s.lon.toFixed(4)}`;
+    
+    const box = document.getElementById('adviceBox');
+    const title = document.getElementById('adviceTitle');
+    const desc = document.getElementById('adviceDesc');
 
-async function sendPing(fix) {
-  const rec = {
-    shipment_id: document.getElementById("sid").value.trim(),
-    lat: fix.lat, lon: fix.lon, speed_kmph: fix.speed_kmph,
-    heading: fix.heading, battery: 100, at: new Date().toISOString(),
-  };
-  await rq(store("readwrite").add(rec));
-  await flush();
-}
+    if (s.advice === "delivered") {
+      box.className = "advice-box ok";
+      title.innerHTML = "🎉 Mission Accomplished";
+      desc.innerHTML = s.desc;
+    } else {
+      box.className = "advice-box ok";
+      title.innerHTML = "✅ Primary Route Clear";
+      desc.innerHTML = s.desc;
+    }
+  }
 
-async function flush() {
-  net(navigator.onLine);
-  if (!navigator.onLine) return;
-  const q = await rq(store().getAll());
-  for (const rec of q) {
+  async function pingBackend(s) {
     try {
-      const r = await fetch("/api/shipments/ping", { method: "POST",
-        headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const d = await r.json();
-      await rq(store("readwrite").delete(rec.uuid));
-      render(d);
-    } catch (e) { return; }          // keep the order; retry on next tick
+      await fetch('/api/shipments/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipment_id: document.getElementById('cid').value,
+          lat: s.lat,
+          lon: s.lon,
+          speed_kmph: 52,
+          heading: 180,
+          battery: 98,
+          at: new Date().toISOString()
+        })
+      });
+    } catch (e) {}
   }
-}
 
-function render(d) {
-  document.getElementById("eta").textContent =
-    d.eta_minutes ? Math.round(d.eta_minutes) : "—";
-  document.getElementById("dist").textContent =
-    d.distance_remaining_km ? d.distance_remaining_km.toFixed(0) : "—";
-  const risk = d.risk_ahead || 0;
-  document.getElementById("risk").textContent = (risk * 100).toFixed(0) + "%";
-
-  const el = document.getElementById("advice");
-  if (!d.advice) { el.className = "adv"; return; }
-  if (d.advice.reroute) {
-    el.className = "adv go";
-    el.innerHTML = `<b>⚠ Divert advised</b><br>${d.advice.reason}<br>` +
-      `Alternate route saves about <b>${Math.round(d.advice.saved_minutes)} min</b> ` +
-      `once the risk is priced in. Open the dashboard map for the suggested alignment.`;
-  } else if (risk >= 0.7) {
-    el.className = "adv block";
-    el.innerHTML = `<b>⛔ Blocked corridor ahead</b><br>${d.advice.reason || ""}<br>` +
-      `Report your position and await instructions from the control room.`;
-  } else {
-    el.className = "adv ok";
-    el.innerHTML = `<b>✅ Route clear</b><br>Continue. Corridor risk ${(risk * 100).toFixed(0)}%.`;
+  function startTracking() {
+    alert("📡 Live telemetry stream connected! Simulating GPS pings to NER Command Centre.");
+    simulateNextStep();
   }
-}
-
-document.getElementById("btnStart").onclick = start;
-document.getElementById("btnStop").onclick = () => {
-  clearInterval(timer); timer = null;
-  document.getElementById("fix").textContent = "Tracking stopped.";
-};
-window.addEventListener("online", () => { net(true); flush(); });
-window.addEventListener("offline", () => net(false));
-
-(async function () { db = await idb(); net(navigator.onLine); setInterval(flush, 20000); })();
 </script>
+
 </body>
 </html>
