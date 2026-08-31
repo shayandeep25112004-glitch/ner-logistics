@@ -148,7 +148,7 @@ class NetworkRouter:
                         visited.add(nbr)
                         queue.append(nbr)
 
-    def snap_node(self, lat: float, lon: float) -> tuple[int, float]:
+    def snap_node(self, lat: float, lon: float, required_component: int | None = None) -> tuple[int, float]:
         """Find the nearest graph node to a coordinate and return (node_id, snap_distance_m)."""
         if not self.nodes:
             raise RuntimeError("Graph is empty. Build network first.")
@@ -157,22 +157,33 @@ class NetworkRouter:
         by = int(math.floor(lon * 10))
 
         candidates = []
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
+        for dx in (-2, -1, 0, 1, 2):
+            for dy in (-2, -1, 0, 1, 2):
                 candidates.extend(self.grid_buckets.get((bx + dx, by + dy), []))
 
         if not candidates:
             candidates = list(self.nodes.keys())
 
-        best_nid = candidates[0]
-        best_dist = float("inf")
+        scored = []
         for nid in candidates:
             n_lat, n_lon = self.nodes[nid]
             d = haversine_km(lat, lon, n_lat, n_lon)
-            if d < best_dist:
-                best_dist = d
-                best_nid = nid
+            scored.append((d, nid))
+        scored.sort(key=lambda x: x[0])
 
+        # If required_component is given, pick nearest with that component
+        if required_component is not None:
+            for d, nid in scored[:50]:
+                if self.components.get(nid) == required_component:
+                    return nid, round(d * 1000.0, 1)
+
+        # Otherwise prefer the primary connected component (component 1 has 97.4% of road network)
+        for d, nid in scored[:50]:
+            if self.components.get(nid) == 1:
+                return nid, round(d * 1000.0, 1)
+
+        # Fallback to closest overall candidate
+        best_dist, best_nid = scored[0]
         return best_nid, round(best_dist * 1000.0, 1)
 
     def edge_cost(self, edge_id: str, custom_risks: dict[str, float] | None = None) -> tuple[float, bool]:
@@ -339,7 +350,8 @@ class NetworkRouter:
             self.load_graph()
 
         start_nid, snap1_m = self.snap_node(lat1, lon1)
-        target_nid, snap2_m = self.snap_node(lat2, lon2)
+        c1 = self.components.get(start_nid, 1)
+        target_nid, snap2_m = self.snap_node(lat2, lon2, required_component=c1)
 
         # Connected component check
         c1 = self.components.get(start_nid)

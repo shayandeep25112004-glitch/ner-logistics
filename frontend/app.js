@@ -30,14 +30,16 @@ function initMap() {
 function onMapClick(e) {
   if (!routeMode) return;
   const pt = [e.latlng.lat, e.latlng.lng];
-  if (!origin) {
+  if (!origin || (origin && destination)) {
+    clearRoute();
     origin = pt;
     originMarker = L.circleMarker(pt, { color: "#4da3ff", fillColor: "#4da3ff",
-      fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Origin");
+      fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("📍 Origin point set. Now click Destination.").openPopup();
+    $("#routes").innerHTML = '<div class="hint">📍 <b>Origin set.</b> Now click a destination on the map to calculate best route &amp; alternates.</div>';
   } else if (!destination) {
     destination = pt;
     destMarker = L.circleMarker(pt, { color: "#ff4d4f", fillColor: "#ff4d4f",
-      fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Destination");
+      fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("🏁 Destination point").openPopup();
     planRoute();
   }
 }
