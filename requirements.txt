@@ -12,7 +12,8 @@ scikit-learn>=1.4
 joblib>=1.3
 
 # Geospatial / OSM
-osmium>=4.0                  # reads .osm.pbf extracts; prebuilt wheels, no compiler needed
+# osmium>=4.0  # PIPELINE ONLY - requires C++ libs, not needed for the API server
+#              # Install locally with: pip install osmium  (needs libosmium)
 
 # HTTP
 requests>=2.31
