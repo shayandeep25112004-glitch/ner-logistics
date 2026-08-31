@@ -25,6 +25,7 @@ from config import (
 )
 from db import db, ensure_db_ready, init_schema
 from services.alerts import translate_alert
+from services.vision import verify_base64_photo, analyze_image_bytes
 
 try:
     from routing.router import get_router, haversine_km
@@ -87,6 +88,12 @@ class FieldReportItem(BaseModel):
     device_id: Optional[str] = ""
     reported_by: Optional[str] = ""
     captured_at: Optional[str] = None
+    photo_data: Optional[str] = None
+
+
+class ImageVerifyRequest(BaseModel):
+    image_base64: str
+    category: str
 
 
 class ShipmentCreate(BaseModel):
@@ -383,6 +390,62 @@ def submit_field_reports(reports: List[FieldReportItem]):
     return {"status": "ok", "inserted": inserted}
 
 
+@app.post("/api/field-report/verify")
+def api_verify_hazard_photo(req: ImageVerifyRequest):
+    """
+    AI Computer Vision verification: analyzes image data against reported hazard category.
+    """
+    res = verify_base64_photo(req.image_base64, req.category)
+    return res
+
+
+@app.post("/api/field-report")
+def submit_single_field_report(item: FieldReportItem):
+    router = get_router()
+    now_str = datetime.datetime.now().isoformat()
+
+    # Optional AI Vision verification
+    ai_res = None
+    if item.photo_data:
+        ai_res = verify_base64_photo(item.photo_data, item.category)
+
+    try:
+        snapped_node, _ = router.snap_node(item.lat, item.lon)
+        incident = router.adj.get(snapped_node, [])
+        edge_id = incident[0]["edge_id"] if incident else None
+    except Exception:
+        edge_id = None
+
+    with db() as conn:
+        conn.execute(
+            """INSERT INTO field_report
+               (lat, lon, category, severity, note, device_id, reported_by, captured_at, received_at, validated, edge_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                item.lat,
+                item.lon,
+                item.category,
+                item.severity,
+                item.note,
+                item.device_id,
+                item.reported_by,
+                item.captured_at or now_str,
+                now_str,
+                1 if (ai_res is None or ai_res.get("verified")) else 0,
+                edge_id,
+            ),
+        )
+
+    # Rescore risk
+    refresh_risk_scores()
+    return {
+        "status": "ok",
+        "ai_verification": ai_res,
+        "edge_id": edge_id,
+        "timestamp": now_str,
+    }
+
+
 @app.post("/api/field/reports/photo")
 async def submit_field_photo(
     file: UploadFile = File(...),
@@ -396,6 +459,8 @@ async def submit_field_photo(
     dst = PHOTOS_DIR / fname
     content = await file.read()
     dst.write_bytes(content)
+
+    ai_res = analyze_image_bytes(content, category)
 
     router = get_router()
     try:
@@ -411,10 +476,10 @@ async def submit_field_photo(
             """INSERT INTO field_report
                (lat, lon, category, severity, note, photo_path, device_id, received_at, validated, edge_id)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (lat, lon, category, 3, note, str(dst), device_id, now_str, 1, edge_id),
+            (lat, lon, category, 3, note, str(dst), device_id, now_str, 1 if ai_res.get("verified") else 0, edge_id),
         )
 
-    return {"status": "ok", "photo_path": str(dst)}
+    return {"status": "ok", "photo_path": str(dst), "ai_verification": ai_res}
 
 
 @app.get("/api/shipments")
