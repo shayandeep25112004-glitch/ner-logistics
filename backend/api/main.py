@@ -27,6 +27,12 @@ from config import (
 from db import db, ensure_db_ready, init_schema
 from services.alerts import translate_alert
 from services.vision import verify_base64_photo, analyze_image_bytes
+from services.news import (
+    get_live_disaster_news,
+    verify_corridor_condition,
+    add_disaster_news,
+    init_news_schema,
+)
 
 try:
     from routing.router import get_router, haversine_km
@@ -130,6 +136,25 @@ class ShipmentCreate(BaseModel):
 class ShipmentStatusUpdate(BaseModel):
     status: str
     eta_minutes: Optional[float] = None
+
+
+class CorridorVerifyRequest(BaseModel):
+    road: str
+    state: Optional[str] = "NER"
+
+
+class DisasterNewsItem(BaseModel):
+    source: str
+    headline: str
+    summary: str
+    road_ref: Optional[str] = "NH-6"
+    state: Optional[str] = "NER"
+    severity: Optional[str] = "warning"
+    is_blocked: Optional[bool] = False
+    divert_info: Optional[str] = ""
+    speech_en: Optional[str] = None
+    speech_hi: Optional[str] = None
+    speech_as: Optional[str] = None
 
 
 class GpsPingItem(BaseModel):
@@ -687,6 +712,41 @@ def ping_shipment(p: GpsPingItem):
         "risk_ahead": round(max_risk, 4),
         "advice": advice,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Real-Time Disaster News & Hazard Verification Endpoints
+# --------------------------------------------------------------------------- #
+@app.get("/api/news/live")
+def api_get_live_news(
+    limit: int = Query(20, ge=1, le=100),
+    state: Optional[str] = None,
+    road: Optional[str] = None,
+):
+    news = get_live_disaster_news(limit=limit, state_filter=state, road_filter=road)
+    return {"count": len(news), "news": news}
+
+
+@app.get("/api/news/ticker")
+def api_get_news_ticker():
+    news = get_live_disaster_news(limit=10)
+    ticker = [
+        f"🚨 {n['source']}: {n['headline']} ({n['published_at'].split('T')[1][:5] if 'T' in n['published_at'] else ''})"
+        for n in news
+    ]
+    return {"ticker": ticker, "items": news}
+
+
+@app.post("/api/news/verify-corridor")
+def api_verify_corridor(req: CorridorVerifyRequest):
+    return verify_corridor_condition(req.road, req.state or "NER")
+
+
+@app.post("/api/news/report")
+def api_submit_disaster_news(item: DisasterNewsItem):
+    res = add_disaster_news(item.model_dump())
+    refresh_risk_scores()
+    return res
 
 
 if __name__ == "__main__":

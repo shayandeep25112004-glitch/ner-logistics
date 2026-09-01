@@ -94,8 +94,8 @@ def refresh_risk_scores() -> dict:
 
     with db() as conn:
         rows = conn.execute(
-            """SELECT e.id, e.is_bridge, e.is_ford, e.base_reliability, e.length_m, e.state,
-                      n.slope_deg, n.tri, n.curvature, n.ele_m
+            """SELECT e.id, e.is_bridge, e.is_ford, e.base_reliability, e.length_m, e.state, e.ref, e.name, e.highway,
+                      n.slope_deg, n.tri, n.curvature, n.ele_m, n.lat, n.lon
                FROM edge e LEFT JOIN node n ON e.node_a = n.id"""
         ).fetchall()
         field_reports = [
@@ -211,7 +211,7 @@ def refresh_risk_scores() -> dict:
         r72 = float(wx.get("rain_72h", 15.0))
 
         # Generate human-readable reason for road status
-        _EDGE_REASONS[eid] = explain_edge_risk(
+        reason_str = explain_edge_risk(
             risk=p,
             is_bridge=is_br,
             is_ford=is_fo,
@@ -220,6 +220,21 @@ def refresh_risk_scores() -> dict:
             field_cat=f_cat,
             field_note=f_note,
         )
+        _EDGE_REASONS[eid] = reason_str
+
+        road_label = r["ref"] or r["name"] or r["highway"] or "Highway"
+        scored_edges.append({
+            "id": eid,
+            "road": road_label,
+            "state": st,
+            "km": round(km, 2),
+            "risk": round(p, 4),
+            "lat": r["lat"],
+            "lon": r["lon"],
+            "is_bridge": is_br,
+            "is_ford": is_fo,
+            "reason": reason_str,
+        })
 
         s = state_stats[st]
         s["tot"] += 1

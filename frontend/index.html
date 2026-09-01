@@ -160,6 +160,92 @@
     background: rgba(59,130,246,0.2); border-color: var(--accent); color: #fff;
   }
 
+  /* Live Disaster News Ticker Bar */
+  .news-ticker-bar {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(90deg, #1e112a 0%, #0f172a 40%, #0b1122 100%);
+    border-bottom: 1.5px solid rgba(245, 158, 11, 0.35);
+    padding: 7px 22px;
+    font-size: 12px;
+    gap: 12px;
+    overflow: hidden;
+  }
+  .ticker-label {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .ticker-track {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ticker-content {
+    display: inline-block;
+    color: #fde68a;
+    font-weight: 500;
+    animation: marqueeNews 35s linear infinite;
+    cursor: pointer;
+  }
+  .ticker-content:hover {
+    animation-play-state: paused;
+  }
+  @keyframes marqueeNews {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+  .btn-ticker-voice {
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid var(--accent);
+    color: #93c5fd;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+  }
+  .btn-ticker-voice:hover {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  /* Audio Equalizer for Hands-Free Driver Voice */
+  .voice-eq-waves {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 14px;
+    margin-left: 6px;
+  }
+  .voice-eq-bar {
+    width: 2.5px;
+    background: var(--open);
+    border-radius: 1px;
+    height: 3px;
+    transition: height 0.1s;
+  }
+  .voice-eq-waves.speaking .voice-eq-bar:nth-child(1) { animation: eqWave 0.5s infinite ease-in-out; }
+  .voice-eq-waves.speaking .voice-eq-bar:nth-child(2) { animation: eqWave 0.7s infinite ease-in-out 0.1s; }
+  .voice-eq-waves.speaking .voice-eq-bar:nth-child(3) { animation: eqWave 0.4s infinite ease-in-out 0.2s; }
+  .voice-eq-waves.speaking .voice-eq-bar:nth-child(4) { animation: eqWave 0.6s infinite ease-in-out 0.15s; }
+  @keyframes eqWave { 0%, 100% { height: 3px; } 50% { height: 14px; background: #38bdf8; } }
+
   /* Map Container & Floating Live Zomato Driver HUD */
   .map-wrapper {
     position: relative;
@@ -174,7 +260,7 @@
     bottom: 20px;
     left: 20px;
     right: 20px;
-    max-width: 540px;
+    max-width: 560px;
     background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -567,6 +653,19 @@
   <a href="/docs" target="_blank" class="nav-tab" style="text-decoration:none;margin-left:auto;">📖 API Docs ↗</a>
 </div>
 
+<!-- Live Disaster News & Ground Advisory Ticker Bar -->
+<div class="news-ticker-bar" id="newsTickerBar">
+  <div class="ticker-label"><span class="pulse-dot"></span> LIVE DISASTER NEWS</div>
+  <div class="ticker-track">
+    <div class="ticker-content" id="newsTickerContent" title="Click to open disaster news feed">
+      🚨 Loading verified road hazard and weather bulletins from ASDMA, SDMA Meghalaya, BRO Swastik/Sewak, and IMD...
+    </div>
+  </div>
+  <button type="button" class="btn-ticker-voice" onclick="speakCurrentNewsBulletin()" title="Listen to spoken audio disaster bulletin">
+    🔊 Listen News <span class="voice-eq-waves" id="newsVoiceWaves"><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i></span>
+  </button>
+</div>
+
 <!-- Tab 1: Command Centre -->
 <div id="tab-command" class="tab-content active">
   <div class="kpis" id="kpis"></div>
@@ -611,6 +710,27 @@
                 <span class="pulse-dot"></span> <span id="hudStatusText">LIVE EN ROUTE</span>
               </span>
               <button type="button" class="hud-btn" style="padding:4px 8px;" onclick="closeLiveTracker()" title="Close Live HUD">✕</button>
+            </div>
+          </div>
+
+          <!-- Hands-Free Driver Voice Co-Pilot Bar -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:6px 10px; background:rgba(0,0,0,0.3); border-radius:10px; border:1px solid var(--line);">
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#38bdf8;">
+              <span>🎙️ Hands-Free Co-Pilot</span>
+              <span class="voice-eq-waves" id="driverVoiceWaves"><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <select id="hudVoiceLang" style="padding:2px 6px; font-size:11px; width:auto;" onchange="changeHudVoiceLang()">
+                <option value="en-IN">English (India)</option>
+                <option value="hi-IN">हिन्दी (Hindi)</option>
+                <option value="as-IN">বাংলা / অসমীয়া</option>
+              </select>
+              <button type="button" class="hud-btn active" id="btnHudVoice" style="padding:3px 8px; font-size:11px;" onclick="toggleHudVoice()">
+                🔊 Voice: ON
+              </button>
+              <button type="button" class="hud-btn" style="padding:3px 8px; font-size:11px;" onclick="speakDriverSituationBriefing()">
+                📢 Read Situation
+              </button>
             </div>
           </div>
 
@@ -721,10 +841,37 @@
             </div>
           </div>
 
+          <!-- Ground Truth & Verified Disaster News Box -->
+          <div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid var(--line);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span style="font-size:10px; font-weight:700; color:#93c5fd; text-transform:uppercase;">📰 Ground Truth &amp; Disaster News</span>
+              <span class="badge b-open" id="inspNewsSource" style="font-size:9px;">🟢 SDMA Verified</span>
+            </div>
+            <div id="inspNewsHeadline" style="font-size:11px; color:#fde68a; font-weight:600; line-height:1.35; margin-bottom:6px;">
+              Terrain stability normal. No active road blockage reported.
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="hud-btn" style="padding:3px 8px; font-size:11px;" onclick="verifySelectedCorridorNews()">🔄 Cross-Check News</button>
+              <button type="button" class="btn-ticker-voice" style="padding:3px 8px; font-size:11px;" onclick="speakSelectedCorridorNews()">🔊 Listen Report</button>
+            </div>
+          </div>
+
           <div style="display:flex; gap:8px; margin-top:12px;">
             <button type="button" class="primary" style="flex:1; padding:6px 10px; font-size:12px;" id="btnSetAsOrigin">📍 Set Origin</button>
             <button type="button" class="primary" style="flex:1; padding:6px 10px; font-size:12px;" id="btnSetAsDest">🏁 Set Destination</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Disaster & Highway News Card -->
+      <div class="card">
+        <h2>
+          🚨 Real-Time Disaster &amp; Highway News
+          <span class="spacer"></span>
+          <button type="button" class="btn-ticker-voice" style="padding:2px 8px; font-size:10px;" onclick="speakAllNewsSummary()">🔊 Read All</button>
+        </h2>
+        <div class="scroll" id="newsFeedList" style="max-height:220px;">
+          <div class="hint">Loading verified disaster bulletins...</div>
         </div>
       </div>
 

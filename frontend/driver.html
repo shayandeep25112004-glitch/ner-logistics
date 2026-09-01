@@ -249,6 +249,21 @@
     </div>
   </div>
 
+  <!-- Live Disaster Bulletin Banner -->
+  <div style="margin-bottom:14px; padding:10px 14px; background:linear-gradient(90deg, #1e112a, #0f172a); border:1.5px solid rgba(245,158,11,0.4); border-radius:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+    <div>
+      <div style="font-size:10px; font-weight:800; color:#fca5a5; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+        <span style="width:6px; height:6px; background:#ef4444; border-radius:50%; display:inline-block;"></span> LIVE DISASTER &amp; ROAD BULLETIN
+      </div>
+      <div id="driverNewsText" style="font-size:11px; color:#fde68a; font-weight:600; margin-top:2px;">
+        Checking real-time alerts from ASDMA, SDMA Meghalaya, BRO, and IMD...
+      </div>
+    </div>
+    <button type="button" class="btn-hear-alert" style="margin:0; flex-shrink:0;" onclick="speakDriverNews()">
+      🔊 Listen
+    </button>
+  </div>
+
   <!-- Telemetry HUD -->
   <div class="card">
     <div class="card-title">
@@ -582,10 +597,40 @@
     } catch (e) {}
   }
 
+  let liveNewsItem = null;
+
+  async function loadDriverNews() {
+    try {
+      const res = await fetch('/api/news/live?limit=5');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.news && data.news.length) {
+        liveNewsItem = data.news[0];
+        document.getElementById('driverNewsText').textContent = `[${liveNewsItem.source}] ${liveNewsItem.headline}`;
+      }
+    } catch (e) {}
+  }
+
+  function speakDriverNews() {
+    if (!liveNewsItem) {
+      speak("No active emergency roadblocks reported. Highway network is clear.", false);
+      return;
+    }
+    const txt = selectedLang === "hi-IN" ? (liveNewsItem.speech_hi || liveNewsItem.headline)
+      : selectedLang === "bn-IN" ? (liveNewsItem.speech_as || liveNewsItem.headline)
+      : (liveNewsItem.speech_en || liveNewsItem.headline);
+    speak(`Emergency Bulletin from ${liveNewsItem.source}: ${txt}`, liveNewsItem.is_blocked);
+  }
+
   function startTracking() {
     speak("Live GPS telemetry stream active. Monitoring road conditions.");
     simulateNextStep();
   }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    loadDriverNews();
+    setInterval(loadDriverNews, 30000);
+  });
 </script>
 
 </body>
