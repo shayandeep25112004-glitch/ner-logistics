@@ -1039,12 +1039,14 @@
 </div>
 
 <script src="/static/vendor/leaflet.js"></script>
-<script src="/static/idb.js"></script>
-<script src="/static/app.js"></script>
+<script src="/static/idb.js?v=4.0"></script>
+<script src="/static/app.js?v=4.0"></script>
 <script>
-  // Service Worker for App Shell Caching
+  // Service Worker Registration with auto-update
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(e => console.warn('[PWA] SW notice:', e));
+    navigator.serviceWorker.register('/sw.js?v=4.0').then((reg) => {
+      reg.update();
+    }).catch(e => console.warn('[PWA] SW notice:', e));
   }
 
   // Tab switcher

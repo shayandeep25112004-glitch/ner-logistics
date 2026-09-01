@@ -1,18 +1,18 @@
 /*
- * NER Logistics & Accessibility Platform — Advanced Service Worker (v2)
+ * NER Logistics & Accessibility Platform — Advanced Service Worker (v4)
  *
  * Designed specifically for low-bandwidth 2G, high-latency, and zero-connectivity hill corridors.
  * 
  * Strategy:
- * 1. App Shell: Cache-first (instant offline page loads).
+ * 1. App Shell & Code: Network-First (always serve fresh updates when online, fallback to cache when offline).
  * 2. API Reads: Network-first with a 2.5-second timeout race, falling back immediately to cached snapshots.
  * 3. Map Tiles: Cache-first with background revalidation (ensures maps render offline).
  * 4. Background Sync: Auto-triggers IndexedDB sync on network reconnect.
  */
 
-const SHELL_CACHE = "ner-shell-v2";
-const DATA_CACHE = "ner-data-v2";
-const TILE_CACHE = "ner-tiles-v2";
+const SHELL_CACHE = "ner-shell-v4";
+const DATA_CACHE = "ner-data-v4";
+const TILE_CACHE = "ner-tiles-v4";
 
 const APP_SHELL = [
   "/",
@@ -24,18 +24,18 @@ const APP_SHELL = [
   "/static/vendor/leaflet.css",
 ];
 
-// Install: Pre-cache App Shell
+// Install: Pre-cache App Shell & Skip Waiting for immediate activation
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches
       .open(SHELL_CACHE)
       .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
       .catch((err) => console.warn("[SW] Cache install warning:", err))
   );
 });
 
-// Activate: Clean up older cache versions
+// Activate: Immediately purge all older cache versions and claim clients
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -77,7 +77,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 3. App Shell Pages & Static Assets: Cache-first
+  // 3. App Shell Pages & Static Assets: Network-First (always fresh when online)
   event.respondWith(handleShellFetch(req, url.pathname));
 });
 
@@ -96,7 +96,6 @@ async function handleApiFetchWithTimeout(req, timeoutMs = 2500) {
       return networkRes;
     })
     .catch((err) => {
-      console.log(`[SW] API network failed for ${req.url}, trying cache fallback...`);
       return null;
     });
 
@@ -109,28 +108,21 @@ async function handleApiFetchWithTimeout(req, timeoutMs = 2500) {
 
   // Network either failed or timed out: fall back to cache
   const cachedRes = await cache.match(req);
-  if (cachedRes) {
-    console.log(`[SW] Serving cached API snapshot for ${req.url}`);
-    return cachedRes;
-  }
+  if (cachedRes) return cachedRes;
 
-  // If no cache yet, wait for fetchPromise to finally resolve or reject
   const fallbackRes = await fetchPromise;
   if (fallbackRes) return fallbackRes;
 
-  return new Response(JSON.stringify({ error: "Offline - Cached data unavailable", offline: true }), {
+  return new Response(JSON.stringify({ offline: true, error: "Network offline & no cached data" }), {
     status: 503,
     headers: { "Content-Type": "application/json" },
   });
 }
 
 /**
- * App Shell cache-first handler
+ * App shell fetch: Network-First with instant offline cache fallback.
  */
 async function handleShellFetch(req, pathname) {
-  const cachedRes = await caches.match(req);
-  if (cachedRes) return cachedRes;
-
   try {
     const networkRes = await fetch(req);
     if (networkRes && networkRes.status === 200) {
@@ -139,7 +131,10 @@ async function handleShellFetch(req, pathname) {
     }
     return networkRes;
   } catch (err) {
-    // If navigation request fails completely, return fallback shell
+    const cachedRes = await caches.match(req);
+    if (cachedRes) return cachedRes;
+
+    // If specific navigation route fails, try cached fallbacks
     if (pathname === "/field") {
       const fallback = await caches.match("/field");
       if (fallback) return fallback;
@@ -155,7 +150,7 @@ async function handleShellFetch(req, pathname) {
 }
 
 /**
- * Tile cache handler
+ * Tile cache handler: Cache-First for lightning fast offline map tiles.
  */
 async function handleTileFetch(req) {
   const tileCache = await caches.open(TILE_CACHE);
@@ -169,21 +164,6 @@ async function handleTileFetch(req) {
     }
     return networkTile;
   } catch (err) {
-    // Return empty transparent pixel if offline & tile not cached
     return new Response("", { status: 408, headers: { "Content-Type": "image/png" } });
   }
 }
-
-// Background Sync (if supported by browser)
-self.addEventListener("sync", (event) => {
-  if (event.tag === "sync-field-reports") {
-    console.log("[SW] Background sync triggered for field reports.");
-    event.waitUntil(
-      self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({ type: "TRIGGER_SYNC" });
-        });
-      })
-    );
-  }
-});
