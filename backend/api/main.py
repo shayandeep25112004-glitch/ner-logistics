@@ -9,6 +9,7 @@ import os
 import time
 from pathlib import Path
 from typing import Any, List, Optional
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -44,19 +45,22 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 PHOTOS_DIR = PROCESSED_DIR / "photos"
 PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(
-    title="NER Logistics & Accessibility Intelligence Platform API",
-    description="Real-time road accessibility, landslide/flood disruption prediction, and risk-aware routing for India's North Eastern Region.",
-    version="1.0.0",
-)
 
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """Ensure the SQLite database is unpacked or initialized."""
     ensure_db_ready()
     import logging
     logging.getLogger("uvicorn").info("DB is ready.")
+    yield
+
+
+app = FastAPI(
+    title="NER Logistics & Accessibility Intelligence Platform API",
+    description="Real-time road accessibility, landslide/flood disruption prediction, and risk-aware routing for India's North Eastern Region.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -89,6 +93,7 @@ class FieldReportItem(BaseModel):
     reported_by: Optional[str] = ""
     captured_at: Optional[str] = None
     photo_data: Optional[str] = None
+    client_uuid: Optional[str] = None
 
 
 class ImageVerifyRequest(BaseModel):
@@ -212,16 +217,22 @@ def get_edges_geojson(
     features = []
     with db() as conn:
         if state:
-            query = "SELECT id, highway, ref, name, state, length_m, is_bridge, is_ford, geom FROM edge WHERE state = ?"
-            rows = conn.execute(query, [state]).fetchall()
-        else:
-            # For all-state overview, return major arteries plus all at-risk segments to keep memory low
             query = """SELECT id, highway, ref, name, state, length_m, is_bridge, is_ford, geom 
                        FROM edge 
-                       WHERE highway IN ('trunk', 'primary', 'secondary', 'tertiary', 'trunk_link', 'primary_link') 
+                       WHERE state = ? 
+                         AND (highway IN ('trunk', 'primary', 'secondary', 'tertiary', 'trunk_link', 'primary_link') 
+                              OR is_bridge = 1 
+                              OR is_ford = 1)
+                       LIMIT 1500"""
+            rows = conn.execute(query, [state]).fetchall()
+        else:
+            # For all-state overview, return top major arteries and monitored assets (fast ~600KB payload)
+            query = """SELECT id, highway, ref, name, state, length_m, is_bridge, is_ford, geom 
+                       FROM edge 
+                       WHERE highway IN ('trunk', 'primary', 'secondary') 
                           OR is_bridge = 1 
                           OR is_ford = 1
-                       LIMIT 8000"""
+                       LIMIT 1000"""
             rows = conn.execute(query).fetchall()
 
     for r in rows:
@@ -429,29 +440,47 @@ def submit_single_field_report(item: FieldReportItem):
     try:
         snapped_node, _ = router.snap_node(item.lat, item.lon)
         incident = router.adj.get(snapped_node, [])
-        edge_id = incident[0]["edge_id"] if incident else None
+        if incident:
+            first = incident[0]
+            if isinstance(first, (list, tuple)) and len(first) > 1:
+                edge_id = first[1]
+            elif isinstance(first, dict):
+                edge_id = first.get("edge_id")
+            else:
+                edge_id = None
+        else:
+            edge_id = None
     except Exception:
         edge_id = None
 
     with db() as conn:
-        conn.execute(
-            """INSERT INTO field_report
-               (lat, lon, category, severity, note, device_id, reported_by, captured_at, received_at, validated, edge_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                item.lat,
-                item.lon,
-                item.category,
-                item.severity,
-                item.note,
-                item.device_id,
-                item.reported_by,
-                item.captured_at or now_str,
-                now_str,
-                1 if (ai_res is None or ai_res.get("verified")) else 0,
-                edge_id,
-            ),
-        )
+        # Idempotency check: avoid double-inserting if retried across flaky 2G uplink
+        existing = conn.execute(
+            """SELECT id FROM field_report 
+               WHERE lat = ? AND lon = ? AND category = ? AND captured_at = ?
+               LIMIT 1""",
+            (item.lat, item.lon, item.category, item.captured_at or now_str),
+        ).fetchone()
+
+        if not existing:
+            conn.execute(
+                """INSERT INTO field_report
+                   (lat, lon, category, severity, note, device_id, reported_by, captured_at, received_at, validated, edge_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    item.lat,
+                    item.lon,
+                    item.category,
+                    item.severity,
+                    item.note,
+                    item.device_id,
+                    item.reported_by,
+                    item.captured_at or now_str,
+                    now_str,
+                    1 if (ai_res is None or ai_res.get("verified")) else 0,
+                    edge_id,
+                ),
+            )
 
     # Rescore risk
     refresh_risk_scores()

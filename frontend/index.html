@@ -314,8 +314,14 @@
 </div>
 
 <script src="/static/vendor/leaflet.js"></script>
+<script src="/static/idb.js"></script>
 <script src="/static/app.js"></script>
 <script>
+  // Service Worker for App Shell Caching
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.warn('[PWA] SW notice:', e));
+  }
+
   // Tab switcher
   document.querySelectorAll('.nav-tab[data-tab]').forEach(tab => {
     tab.addEventListener('click', () => {

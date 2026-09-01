@@ -148,8 +148,15 @@ class NetworkRouter:
                 curr = queue.pop()
                 size += 1
                 self.components[curr] = comp_id
-                for nbr, _ in self.adj.get(curr, []):
-                    if nbr not in visited:
+                for item in self.adj.get(curr, []):
+                    if isinstance(item, dict):
+                        nbr = item["neighbor"]
+                    elif isinstance(item, (list, tuple)):
+                        nbr = item[0]
+                    else:
+                        nbr = getattr(item, "neighbor", None)
+
+                    if nbr is not None and nbr not in visited:
                         visited.add(nbr)
                         queue.append(nbr)
             comp_sizes[comp_id] = size
@@ -158,6 +165,15 @@ class NetworkRouter:
             self.largest_component_id = max(comp_sizes, key=comp_sizes.get)
         else:
             self.largest_component_id = 1
+
+    def _node_coords(self, nid: int) -> tuple[float, float]:
+        """Safely extract (lat, lon) from tuple, dict, or object."""
+        n_val = self.nodes[nid]
+        if isinstance(n_val, dict):
+            return float(n_val["lat"]), float(n_val["lon"])
+        elif isinstance(n_val, (list, tuple)):
+            return float(n_val[0]), float(n_val[1])
+        return float(getattr(n_val, "lat", 0.0)), float(getattr(n_val, "lon", 0.0))
 
     def snap_node(self, lat: float, lon: float, required_component: int | None = None) -> tuple[int, float]:
         """Find the nearest graph node to a coordinate and return (node_id, snap_distance_m)."""
@@ -188,7 +204,7 @@ class NetworkRouter:
 
         scored = []
         for nid in candidates:
-            n_lat, n_lon = self.nodes[nid]
+            n_lat, n_lon = self._node_coords(nid)
             d = haversine_km(lat, lon, n_lat, n_lon)
             scored.append((d, nid))
         scored.sort(key=lambda x: x[0])
@@ -205,8 +221,9 @@ class NetworkRouter:
     def edge_cost(self, edge_id: str, custom_risks: dict[str, float] | None = None) -> tuple[float, bool]:
         """Compute traversal cost (minutes) and blocked flag for an edge."""
         edge = self.edges[edge_id]
-        risk = custom_risks.get(edge_id, edge.risk) if custom_risks else edge.risk
-        base_min = edge.base_minutes
+        edge_risk = edge["risk"] if isinstance(edge, dict) else edge.risk
+        base_min = edge["base_minutes"] if isinstance(edge, dict) else edge.base_minutes
+        risk = custom_risks.get(edge_id, edge_risk) if custom_risks else edge_risk
 
         is_blocked = risk >= RISK_BLOCKED
         cost = base_min * (1.0 + RISK_COST_WEIGHT * risk)
@@ -227,10 +244,10 @@ class NetworkRouter:
         if start_node == target_node:
             return {"edge_ids": [], "cost": 0.0, "distance_km": 0.0, "free_flow_min": 0.0}
 
-        target_lat, target_lon = self.nodes[target_node]
+        target_lat, target_lon = self._node_coords(target_node)
 
         def heuristic(nid: int) -> float:
-            n_lat, n_lon = self.nodes[nid]
+            n_lat, n_lon = self._node_coords(nid)
             dist_km = haversine_km(n_lat, n_lon, target_lat, target_lon)
             return (dist_km / MAX_SPEED_KMPH) * 60.0
 
@@ -250,8 +267,17 @@ class NetworkRouter:
                     curr = prev_node
                 path_edges.reverse()
 
-                tot_dist = sum(self.edges[eid].distance_km for eid in path_edges)
-                tot_free_flow = sum(self.edges[eid].base_minutes for eid in path_edges)
+                tot_dist = 0.0
+                tot_free_flow = 0.0
+                for eid in path_edges:
+                    e_obj = self.edges[eid]
+                    if isinstance(e_obj, dict):
+                        tot_dist += e_obj.get("distance_km", (e_obj.get("length_m", 0.0) or 0.0) / 1000.0)
+                        tot_free_flow += e_obj.get("base_minutes", 1.0)
+                    else:
+                        tot_dist += getattr(e_obj, "distance_km", 0.0)
+                        tot_free_flow += getattr(e_obj, "base_minutes", 1.0)
+
                 return {
                     "edge_ids": path_edges,
                     "cost": g,
@@ -262,7 +288,16 @@ class NetworkRouter:
             if best_g.get(u, float("inf")) < g:
                 continue
 
-            for v, eid in self.adj.get(u, []):
+            for item in self.adj.get(u, []):
+                if isinstance(item, dict):
+                    v = item["neighbor"]
+                    eid = item["edge_id"]
+                elif isinstance(item, (list, tuple)):
+                    v, eid = item[0], item[1]
+                else:
+                    v = getattr(item, "neighbor", None)
+                    eid = getattr(item, "edge_id", None)
+
                 if forbidden_edges and eid in forbidden_edges:
                     continue
                 ecost, _ = self.edge_cost(eid, custom_risks)
@@ -325,7 +360,17 @@ class NetworkRouter:
             e = self.edges.get(eid)
             if not e:
                 continue
-            risk = custom_risks.get(eid, e.risk) if custom_risks else e.risk
+            e_risk = e.get("risk", 0.0) if isinstance(e, dict) else e.risk
+            e_dist = e.get("distance_km", (e.get("length_m", 0.0) or 0.0) / 1000.0) if isinstance(e, dict) else getattr(e, "distance_km", 0.0)
+            e_base = e.get("base_minutes", 1.0) if isinstance(e, dict) else getattr(e, "base_minutes", 1.0)
+            e_road = e.get("road", e.get("ref", "Road")) if isinstance(e, dict) else e.road
+            e_hwy = e.get("highway", "road") if isinstance(e, dict) else e.highway
+            e_bridge = bool(e.get("is_bridge", False) if isinstance(e, dict) else e.is_bridge)
+            e_ford = bool(e.get("is_ford", False) if isinstance(e, dict) else e.is_ford)
+            e_node_a = e.get("node_a") if isinstance(e, dict) else e.node_a
+            e_node_b = e.get("node_b") if isinstance(e, dict) else e.node_b
+
+            risk = custom_risks.get(eid, e_risk) if custom_risks else e_risk
             if risk > max_risk:
                 max_risk = risk
             if risk >= RISK_BLOCKED:
@@ -333,17 +378,17 @@ class NetworkRouter:
 
             cost, _ = self.edge_cost(eid, custom_risks)
             tot_risk_adj += cost
-            tot_dist_km += e.distance_km
-            tot_free_flow += e.base_minutes
+            tot_dist_km += e_dist
+            tot_free_flow += e_base
 
             segments.append({
                 "edge_id": eid,
-                "road": e.road,
-                "highway": e.highway,
-                "km": round(e.distance_km, 2),
+                "road": e_road,
+                "highway": e_hwy,
+                "km": round(e_dist, 2),
                 "risk": round(risk, 4),
-                "is_bridge": e.is_bridge,
-                "is_ford": e.is_ford,
+                "is_bridge": e_bridge,
+                "is_ford": e_ford,
             })
 
             geom = edge_geoms.get(eid)
@@ -351,10 +396,10 @@ class NetworkRouter:
                 coords.extend(geom)
             else:
                 # Fallback to direct node coordinates if edge geom is not in DB
-                u_coord = self.nodes.get(e.node_a)
-                v_coord = self.nodes.get(e.node_b)
-                if u_coord and v_coord:
-                    coords.extend([list(u_coord), list(v_coord)])
+                if e_node_a in self.nodes and e_node_b in self.nodes:
+                    u_coord = self._node_coords(e_node_a)
+                    v_coord = self._node_coords(e_node_b)
+                    coords.extend([[u_coord[0], u_coord[1]], [v_coord[0], v_coord[1]]])
 
         # Simplify duplicate consecutive coordinates in polyline
         clean_coords = []
@@ -396,7 +441,7 @@ class NetworkRouter:
 
         # Handle case where start and end snap to the exact same node
         if start_nid == target_nid:
-            s_lat, s_lon = self.nodes.get(start_nid, (lat1, lon1))
+            s_lat, s_lon = self._node_coords(start_nid) if start_nid in self.nodes else (lat1, lon1)
             return {
                 "routes": [{
                     "rank": 1,
@@ -449,7 +494,9 @@ class NetworkRouter:
                 e = self.edges.get(eid)
                 if not e:
                     continue
-                nxt = e.node_b if e.node_a == curr else e.node_a
+                e_node_a = e.get("node_a") if isinstance(e, dict) else e.node_a
+                e_node_b = e.get("node_b") if isinstance(e, dict) else e.node_b
+                nxt = e_node_b if e_node_a == curr else e_node_a
                 node_chain.append(nxt)
                 curr = nxt
 

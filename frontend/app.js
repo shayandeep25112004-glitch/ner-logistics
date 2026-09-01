@@ -56,35 +56,71 @@ function clearRoute() {
 /* -------------------------------------------------------------- data ---- */
 async function loadHealth() {
   try {
-    const h = await (await fetch(`${API}/api/health`)).json();
-    if (h.status !== "ok") { setStatus("Network not built yet: " + (h.hint || "")); return; }
-    $("#pillNet").textContent =
-      `${h.network.network_km.toLocaleString()} km · ${h.network.edges.toLocaleString()} segments · ${h.network.bridges.toLocaleString()} bridges`;
-    $("#pillModel").textContent = h.model
-      ? `model AUC ${h.model.auc} · AP ${h.model.avg_precision}`
-      : "model not trained";
-    $("#pillModel").title = h.model ? h.model.notes : "";
-    $("#pillTime").textContent = new Date().toLocaleTimeString();
-
-    const k = h.network;
-    $("#kpis").innerHTML = [
-      ["Network", `${k.network_km.toLocaleString()} km`],
-      ["Road segments", k.edges.toLocaleString()],
-      ["Bridges monitored", k.bridges.toLocaleString()],
-      ["River fords", k.fords.toLocaleString()],
-      ["Rainfall days", k.weather_days.toLocaleString()],
-      ["Field reports", k.field_reports.toLocaleString()],
-    ].map(([l, v]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+    const res = await fetch(`${API}/api/health`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const h = await res.json();
+    if (h && window.nerDB) window.nerDB.setCache("health", h);
+    renderHealth(h);
   } catch (e) {
+    if (window.nerDB) {
+      const cached = await window.nerDB.getCache("health");
+      if (cached) {
+        renderHealth(cached);
+        setStatus("Offline Mode: Serving cached platform metrics.");
+        return;
+      }
+    }
     setStatus("Cannot reach the API: " + e.message);
   }
 }
 
+function renderHealth(h) {
+  if (h.status !== "ok") { setStatus("Network not built yet: " + (h.hint || "")); return; }
+  $("#pillNet").textContent =
+    `${h.network.network_km.toLocaleString()} km · ${h.network.edges.toLocaleString()} segments · ${h.network.bridges.toLocaleString()} bridges`;
+  $("#pillModel").textContent = h.model
+    ? `model AUC ${h.model.auc} · AP ${h.model.avg_precision}`
+    : "model not trained";
+  $("#pillModel").title = h.model ? h.model.notes : "";
+  $("#pillTime").textContent = new Date().toLocaleTimeString();
+
+  const k = h.network;
+  $("#kpis").innerHTML = [
+    ["Network", `${k.network_km.toLocaleString()} km`],
+    ["Road segments", k.edges.toLocaleString()],
+    ["Bridges monitored", k.bridges.toLocaleString()],
+    ["River fords", k.fords.toLocaleString()],
+    ["Rainfall days", k.weather_days.toLocaleString()],
+    ["Field reports", k.field_reports.toLocaleString()],
+  ].map(([l, v]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+}
+
 async function loadEdges() {
-  const params = new URLSearchParams({ simplify: "true" });
-  if (state.stateFilter) params.set("state", state.stateFilter);
-  if (state.risk > 0) params.set("min_risk", state.risk);
-  const gj = await (await fetch(`${API}/api/network/edges.geojson?${params}`)).json();
+  const cacheKey = `edges_${state.stateFilter || "all"}_${state.risk}`;
+  try {
+    const params = new URLSearchParams({ simplify: "true" });
+    if (state.stateFilter) params.set("state", state.stateFilter);
+    if (state.risk > 0) params.set("min_risk", state.risk);
+    const res = await fetch(`${API}/api/network/edges.geojson?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const gj = await res.json();
+    if (!gj || !gj.features) return;
+    if (window.nerDB) window.nerDB.setCache(cacheKey, gj);
+    renderEdges(gj);
+  } catch (err) {
+    if (window.nerDB) {
+      const cached = await window.nerDB.getCache(cacheKey);
+      if (cached) {
+        renderEdges(cached);
+        setStatus("Offline Mode: Serving cached road corridor map.");
+        return;
+      }
+    }
+    console.warn("Edge overlay loading bypassed:", err);
+  }
+}
+
+function renderEdges(gj) {
   edgeLayer.clearLayers();
   L.geoJSON(gj, {
     style: (f) => ({
@@ -100,12 +136,28 @@ async function loadEdges() {
         (p.bridge ? "<br>⚠ bridge" : "") + (p.ford ? "<br>⚠ river ford" : ""));
     },
   }).addTo(edgeLayer);
-  setStatus(`Loaded ${gj.features.length} segments`);
+  setStatus(`Loaded ${gj.features.length} road segments`);
 }
 
 async function loadDistricts() {
-  const d = await (await fetch(`${API}/api/risk/districts`)).json();
+  try {
+    const res = await fetch(`${API}/api/risk/districts`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    if (d && window.nerDB) window.nerDB.setCache("districts", d);
+    renderDistricts(d);
+  } catch (err) {
+    if (window.nerDB) {
+      const cached = await window.nerDB.getCache("districts");
+      if (cached) { renderDistricts(cached); return; }
+    }
+    console.warn("District status loading bypassed:", err);
+  }
+}
+
+function renderDistricts(d) {
   const tb = $("#tblDistricts tbody");
+  if (!tb || !d.rows) return;
   tb.innerHTML = d.rows.map((r) => {
     const pct = (r.connectivity_index * 100).toFixed(0);
     const c = r.connectivity_index > 0.85 ? COLOUR.open
@@ -118,7 +170,7 @@ async function loadDistricts() {
   }).join("");
 
   const sel = $("#selState");
-  if (sel.options.length <= 1) {
+  if (sel && sel.options.length <= 1) {
     d.rows.forEach((r) => {
       const o = document.createElement("option");
       o.value = r.state; o.textContent = r.state;
@@ -128,8 +180,25 @@ async function loadDistricts() {
 }
 
 async function loadCorridors() {
-  const d = await (await fetch(`${API}/api/risk/corridors?n=20`)).json();
-  $("#tblCorridors tbody").innerHTML = d.corridors.map((c) =>
+  try {
+    const res = await fetch(`${API}/api/risk/corridors?n=20`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    if (d && window.nerDB) window.nerDB.setCache("corridors", d);
+    renderCorridors(d);
+  } catch (err) {
+    if (window.nerDB) {
+      const cached = await window.nerDB.getCache("corridors");
+      if (cached) { renderCorridors(cached); return; }
+    }
+    console.warn("Corridors loading bypassed:", err);
+  }
+}
+
+function renderCorridors(d) {
+  const tb = $("#tblCorridors tbody");
+  if (!tb || !d.corridors) return;
+  tb.innerHTML = d.corridors.map((c) =>
     `<tr><td title="${c.edge_id}">${c.road}${c.bridge ? " ⚠" : ""}</td><td>${c.state}</td>
      <td class="mono">${c.km}</td><td class="mono">${(c.risk * 100).toFixed(0)}%</td>
      <td><span class="badge b-${c.status === "open" ? "open" : c.status === "at_risk" ? "risk" : "blocked"}">${c.status}</span></td></tr>`
@@ -137,9 +206,26 @@ async function loadCorridors() {
 }
 
 async function loadAlerts() {
-  const d = await (await fetch(`${API}/api/alerts?limit=25`)).json();
-  if (!d.alerts.length) { $("#alerts").innerHTML = '<div class="hint">No alerts yet.</div>'; return; }
-  $("#alerts").innerHTML = d.alerts.map((a) =>
+  try {
+    const res = await fetch(`${API}/api/alerts?limit=25`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    if (d && window.nerDB) window.nerDB.setCache("alerts", d);
+    renderAlerts(d);
+  } catch (err) {
+    if (window.nerDB) {
+      const cached = await window.nerDB.getCache("alerts");
+      if (cached) { renderAlerts(cached); return; }
+    }
+    console.warn("Alerts loading bypassed:", err);
+  }
+}
+
+function renderAlerts(d) {
+  const el = $("#alerts");
+  if (!el) return;
+  if (!d.alerts || !d.alerts.length) { el.innerHTML = '<div class="hint">No active alerts at this time.</div>'; return; }
+  el.innerHTML = d.alerts.map((a) =>
     `<div class="alert">
        <div class="t">${a.title} <span class="badge ${SEV[a.severity] || "b-risk"}">${a.severity}</span></div>
        <div class="m">${a.body}</div>
@@ -148,14 +234,24 @@ async function loadAlerts() {
 }
 
 async function loadShipments() {
-  const d = await (await fetch(`${API}/api/shipments`)).json();
-  if (!d.count) { $("#tblShips tbody").innerHTML =
-    '<tr><td colspan="5" style="color:var(--muted)">No consignments registered.</td></tr>'; return; }
-  $("#tblShips tbody").innerHTML = d.shipments.map((s) =>
-    `<tr><td>${s.id}</td><td>${s.commodity}</td><td>${s.destination || "—"}</td>
-     <td class="mono">${s.eta_minutes ? Math.round(s.eta_minutes) + " min" : "—"}</td>
-     <td><span class="badge b-${s.status === "blocked" ? "blocked" : s.status === "delivered" ? "open" : "risk"}">${s.status}</span></td></tr>`
-  ).join("");
+  try {
+    const res = await fetch(`${API}/api/shipments`);
+    if (!res.ok) return;
+    const d = await res.json();
+    const tb = $("#tblShips tbody");
+    if (!tb) return;
+    if (!d.count || !d.shipments) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No consignments registered.</td></tr>';
+      return;
+    }
+    tb.innerHTML = d.shipments.map((s) =>
+      `<tr><td>${s.id}</td><td>${s.commodity}</td><td>${s.destination || "—"}</td>
+       <td class="mono">${s.eta_minutes ? Math.round(s.eta_minutes) + " min" : "—"}</td>
+       <td><span class="badge b-${s.status === "blocked" ? "blocked" : s.status === "delivered" ? "open" : "risk"}">${s.status}</span></td></tr>`
+    ).join("");
+  } catch (err) {
+    console.warn("Shipments loading bypassed:", err);
+  }
 }
 
 /* ------------------------------------------------------------- route ---- */

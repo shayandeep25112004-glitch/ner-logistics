@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <meta name="theme-color" content="#0b1020" />
-<title>NER Driver — AI Voice Navigation &amp; Hazard Alert System</title>
+<title>NER Driver — AI Voice Navigation &amp; Offline Hazard Alert System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
@@ -60,11 +60,21 @@
     font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
     background: rgba(16,185,129,0.15); border: 1px solid var(--ok); color: var(--ok);
     display: flex; align-items: center; gap: 6px;
+    transition: all 0.3s;
   }
-  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: pulse 2s infinite; }
+  .status-pill.offline {
+    background: rgba(245,158,11,0.15); border-color: var(--warn); color: var(--warn);
+  }
+  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; animation: pulse 2s infinite; }
   @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
   main { max-width: 620px; margin: 20px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
+
+  .offline-nav-banner {
+    background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 12px; padding: 10px 14px; font-size: 12px; color: #fde68a;
+    display: none; align-items: center; gap: 10px;
+  }
 
   .card {
     background: var(--panel);
@@ -208,12 +218,18 @@
   <div class="header-actions">
     <div class="status-pill" id="tripPill">
       <span class="pulse-dot"></span>
-      <span id="tripPillText">Active Run</span>
+      <span id="tripPillText">Online Run</span>
     </div>
   </div>
 </header>
 
 <main>
+  <!-- Offline Navigation Mode Banner -->
+  <div class="offline-nav-banner" id="offlineNavBanner">
+    <span>📡</span>
+    <span><b>Offline Hill Mode Active:</b> Navigation is running from cached corridor trajectory and local speech engine. Telemetry will sync when signal returns.</span>
+  </div>
+
   <!-- Voice Assistant Status Bar -->
   <div class="voice-bar">
     <div class="voice-meta">
@@ -347,7 +363,13 @@
   </div>
 </main>
 
+<script src="/static/idb.js"></script>
 <script>
+  // Register Service Worker for offline app shell
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('[Driver PWA] SW notice:', e));
+  }
+
   let stepIndex = 0;
   let voiceEnabled = true;
   let selectedLang = "en-IN";
@@ -381,6 +403,27 @@
     }
   ];
 
+  // ---------------------------------------------------- Network Status Sync ---- //
+  function updateNetworkStatus() {
+    const pill = document.getElementById('tripPill');
+    const text = document.getElementById('tripPillText');
+    const banner = document.getElementById('offlineNavBanner');
+
+    if (navigator.onLine) {
+      pill.className = "status-pill";
+      text.textContent = "Online Run";
+      banner.style.display = "none";
+    } else {
+      pill.className = "status-pill offline";
+      text.textContent = "Offline Mode";
+      banner.style.display = "flex";
+    }
+  }
+
+  window.addEventListener('online', updateNetworkStatus);
+  window.addEventListener('offline', updateNetworkStatus);
+  document.addEventListener('DOMContentLoaded', updateNetworkStatus);
+
   // ---------------------------------------------------- Voice Assistant Engine ---- //
   function playAudioTone(freq = 600, duration = 0.15) {
     try {
@@ -412,7 +455,6 @@
     utter.rate = 0.95;
     utter.pitch = isDanger ? 1.1 : 1.0;
 
-    // Animate equalizer while speaking
     const eq = document.getElementById('equalizer');
     utter.onstart = () => { eq.classList.add('active'); };
     utter.onend = () => { eq.classList.remove('active'); };
@@ -452,14 +494,22 @@
     }
   }
 
-  // ---------------------------------------------------- Mission Simulation ---- //
-  function loadMission(id, cargo, orig, dest, lat, lon, veh) {
+  // ---------------------------------------------------- Mission Simulation & Caching ---- //
+  async function loadMission(id, cargo, orig, dest, lat, lon, veh) {
     document.getElementById('cid').value = id;
     document.getElementById('cargo').value = cargo;
     document.getElementById('origin').value = orig;
     document.getElementById('dest').value = dest;
     document.getElementById('veh').value = veh;
     stepIndex = 0;
+
+    // Cache mission trajectory to IndexedDB
+    if (window.nerDB) {
+      await window.nerDB.saveRoute(id, {
+        id, cargo, orig, dest, veh, trajectory: demoTrajectory
+      });
+    }
+
     renderStep(demoTrajectory[0]);
     speak(`New mission loaded: Consignment ${id} from ${orig} to ${dest}.`);
   }
@@ -514,6 +564,7 @@
   }
 
   async function pingBackend(s) {
+    if (!navigator.onLine) return; // Skip online ping in zero-signal zone
     try {
       await fetch('/api/shipments/ping', {
         method: 'POST',
