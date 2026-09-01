@@ -30,7 +30,7 @@ from services.vision import verify_base64_photo, analyze_image_bytes
 
 try:
     from routing.router import get_router, haversine_km
-    from services.risk import get_latest_edge_risks, refresh_risk_scores
+    from services.risk import get_latest_edge_risks, get_latest_edge_reasons, get_edge_reason, refresh_risk_scores
     _ROUTER_AVAILABLE = True
 except Exception as _e:
     import warnings
@@ -39,6 +39,8 @@ except Exception as _e:
     def get_router(): return None  # type: ignore
     def haversine_km(*a, **kw): return 0.0  # type: ignore
     def get_latest_edge_risks(): return {}  # type: ignore
+    def get_latest_edge_reasons(): return {}  # type: ignore
+    def get_edge_reason(eid): return ""  # type: ignore
     def refresh_risk_scores(): return {"status": "no data"}  # type: ignore
 
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -48,10 +50,19 @@ PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Ensure the SQLite database is unpacked or initialized."""
+    """Ensure the SQLite database is unpacked and routing graph is preloaded into RAM on startup."""
     ensure_db_ready()
     import logging
-    logging.getLogger("uvicorn").info("DB is ready.")
+    logger = logging.getLogger("uvicorn")
+    logger.info("DB is ready. Pre-loading road network routing graph into memory...")
+    try:
+        router = get_router()
+        if router and not router.loaded:
+            router.load_graph()
+        refresh_risk_scores()
+        logger.info(f"Road network graph pre-loaded ({len(router.edges) if router else 0:,} edges). Server ready.")
+    except Exception as exc:
+        logger.warning(f"Router preloading notice: {exc}")
     yield
 
 
@@ -112,6 +123,13 @@ class ShipmentCreate(BaseModel):
     driver_name: Optional[str] = ""
     driver_phone: Optional[str] = ""
     priority: int = 2
+    status: Optional[str] = "in_transit"
+    eta_minutes: Optional[float] = 120.0
+
+
+class ShipmentStatusUpdate(BaseModel):
+    status: str
+    eta_minutes: Optional[float] = None
 
 
 class GpsPingItem(BaseModel):
@@ -213,6 +231,7 @@ def get_edges_geojson(
 ):
     router = get_router()
     risks = get_latest_edge_risks()
+    reasons = get_latest_edge_reasons()
 
     features = []
     with db() as conn:
@@ -249,6 +268,7 @@ def get_edges_geojson(
         coords = [[pt[1], pt[0]] for pt in geom_raw]
         road_label = r["ref"] or r["name"] or r["highway"] or "Road"
         status = "blocked" if risk >= RISK_BLOCKED else "at_risk" if risk >= RISK_AT_RISK else "open"
+        reason_text = reasons.get(eid, "Terrain & Weather Disruption Risk")
 
         features.append({
             "type": "Feature",
@@ -264,6 +284,7 @@ def get_edges_geojson(
                 "state": r["state"],
                 "risk": round(risk, 4),
                 "status": status,
+                "reason": reason_text,
                 "bridge": bool(r["is_bridge"]),
                 "ford": bool(r["is_ford"]),
             },
@@ -285,6 +306,7 @@ def get_districts_status():
 @app.get("/api/risk/corridors")
 def get_high_risk_corridors(n: int = Query(20, ge=1, le=100)):
     risks = get_latest_edge_risks()
+    reasons = get_latest_edge_reasons()
     with db() as conn:
         rows = conn.execute(
             """SELECT e.id, e.highway, e.ref, e.name, e.state, e.length_m, e.is_bridge, e.is_ford, n.lat, n.lon
@@ -304,6 +326,7 @@ def get_high_risk_corridors(n: int = Query(20, ge=1, le=100)):
             "km": round((r["length_m"] or 0.0) / 1000.0, 2),
             "risk": round(p, 4),
             "status": status,
+            "reason": reasons.get(eid, "Terrain & Weather Disruption Risk"),
             "bridge": bool(r["is_bridge"]),
             "ford": bool(r["is_ford"]),
             "lat": r["lat"],
@@ -325,13 +348,17 @@ def api_plan_route(req: RouteRequest):
     try:
         router = get_router()
         if not router or not getattr(router, "nodes", None):
-            return {
-                "routes": [],
-                "computed_in_ms": 0,
-                "diagnostics": "Road network graph is currently initializing. Please try again in 5 seconds.",
-                "model_note": "A* with Yen K-alternates",
-                "snap_distance_m": [0.0, 0.0],
-            }
+            if router:
+                router.load_graph()
+            else:
+                return {
+                    "routes": [],
+                    "computed_in_ms": 0,
+                    "diagnostics": "Road network graph is warming up. Please try again in 3 seconds.",
+                    "model_note": "A* with Yen K-alternates",
+                    "snap_distance_m": [0.0, 0.0],
+                }
+
         risks = get_latest_edge_risks() if req.use_live_forecast else None
         res = router.plan_route(
             req.lat1,
@@ -341,6 +368,23 @@ def api_plan_route(req: RouteRequest):
             alternatives=req.alternatives,
             custom_risks=risks,
         )
+
+        reasons = get_latest_edge_reasons()
+        for rt in res.get("routes", []):
+            block_reasons = []
+            for s in rt.get("segments", []):
+                eid = s.get("edge_id")
+                s_reason = reasons.get(eid, "")
+                s["reason"] = s_reason
+                if s.get("risk", 0) >= RISK_AT_RISK and s_reason and s_reason not in block_reasons:
+                    block_reasons.append(s_reason)
+            if block_reasons:
+                rt["blockage_reason"] = "; ".join(block_reasons[:2])
+            elif rt.get("passes_blocked_segment"):
+                rt["blockage_reason"] = "Severe landslide and road obstruction on active corridor"
+            else:
+                rt["blockage_reason"] = "Clear corridor: stable terrain and normal transit flow"
+
         return res
     except Exception as exc:
         return {
@@ -554,13 +598,29 @@ def create_shipment(s: ShipmentCreate):
                 s.vehicle_no,
                 s.driver_name,
                 s.driver_phone,
-                "in_transit",
+                s.status or "in_transit",
                 s.priority,
                 now_str,
-                120.0,
+                s.eta_minutes or 120.0,
             ),
         )
     return {"status": "ok", "id": s.id}
+
+
+@app.post("/api/shipments/{shipment_id}/status")
+def update_shipment_status(shipment_id: str, payload: ShipmentStatusUpdate):
+    with db() as conn:
+        if payload.eta_minutes is not None:
+            conn.execute(
+                "UPDATE shipment SET status = ?, eta_minutes = ? WHERE id = ?",
+                (payload.status, payload.eta_minutes, shipment_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE shipment SET status = ? WHERE id = ?",
+                (payload.status, shipment_id),
+            )
+    return {"status": "ok", "id": shipment_id, "new_status": payload.status}
 
 
 @app.post("/api/shipments/ping")

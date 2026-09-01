@@ -28,6 +28,56 @@ from services.imd_client import get_live_forecast
 
 # Global in-process cache of latest edge risks: edge_id -> float
 _LATEST_RISKS: dict[str, float] = {}
+# Global in-process cache of edge blockage/hazard reasons: edge_id -> str
+_EDGE_REASONS: dict[str, str] = {}
+
+
+def explain_edge_risk(
+    risk: float,
+    is_bridge: bool = False,
+    is_ford: bool = False,
+    slope: float = 0.0,
+    rain_72h: float = 0.0,
+    field_cat: str | None = None,
+    field_note: str | None = None,
+) -> str:
+    """Generate human-understandable explanation of why an edge is blocked or at-risk."""
+    if field_cat:
+        cat_map = {
+            "landslide": "🪨 Verified Landslide: Mud/rock debris blocking roadway",
+            "flood": "🌊 Verified Flash Flood: River water overwash / road submerged",
+            "road_damage": "🚧 Structural Damage: Road fissure / pavement washout",
+            "blocked": "⛔ Fully Blocked: Obstruction confirmed by ground patrol",
+            "congestion": "🚗 Severe Congestion: Traffic bottleneck & narrow bypass",
+            "clear": "✅ Road Cleared: Normal transit restored",
+        }
+        reason = cat_map.get(field_cat, f"⚠️ Verified Hazard: {field_cat.capitalize()}")
+        if field_note:
+            reason += f" ({field_note[:45]})"
+        return reason
+
+    if risk >= RISK_BLOCKED:
+        if is_bridge:
+            return "🌉 Critical Bridge Hazard: High riverbed flood surge & structural undercutting"
+        elif is_ford:
+            return "🌊 River Ford Submerged: Impassable river crossing depth"
+        elif slope >= 28.0:
+            return f"🪨 High Landslide Risk: Steep hill slope ({slope:.0f}°) saturated by heavy rainfall"
+        elif rain_72h >= 60.0:
+            return f"🌧️ Torrential Rain Inundation: {rain_72h:.0f}mm 72h accumulation triggering slope failure"
+        else:
+            return "⚠️ High Disruption Risk: Mountain terrain instability & seasonal monsoon erosion"
+    elif risk >= RISK_AT_RISK:
+        if is_bridge or is_ford:
+            return "🌉 Bridge / Water Crossing Alert: Elevated water flow velocity"
+        elif slope >= 20.0:
+            return f"⚠️ Landslide Prone Slope: Moderate slope ({slope:.0f}°) with soil loosening"
+        elif rain_72h >= 35.0:
+            return f"🌧️ Moderate Rain Saturation: {rain_72h:.0f}mm 72h precipitation (proceed with caution)"
+        else:
+            return "⚠️ Caution Advised: Vulnerable hill cut / minor debris"
+    else:
+        return "✅ Open: Stable geological conditions & clear corridor"
 
 
 def load_disruption_model():
@@ -117,13 +167,18 @@ def refresh_risk_scores() -> dict:
         probs = np.clip((X[:, 0] / 45.0) * 0.4 + (X[:, 4] / 100.0) * 0.5, 0.01, 0.95)
 
     _LATEST_RISKS.clear()
+    _EDGE_REASONS.clear()
     scored_edges = []
 
     # Map field reports for instant pin overrides
     report_pins = {}
+    report_cats = {}
+    report_notes = {}
     for fr in field_reports:
         cat = fr["category"]
         eid = fr["edge_id"]
+        report_cats[eid] = cat
+        report_notes[eid] = fr.get("note", "")
         if cat in ("landslide", "flood", "blocked", "road_damage"):
             report_pins[eid] = 1.0
         elif cat == "clear":
@@ -137,6 +192,9 @@ def refresh_risk_scores() -> dict:
     for i, r in enumerate(rows):
         eid = edge_ids[i]
         p = float(probs[i])
+        f_cat = report_cats.get(eid)
+        f_note = report_notes.get(eid)
+
         if eid in report_pins:
             p = report_pins[eid]
         
@@ -146,7 +204,23 @@ def refresh_risk_scores() -> dict:
 
         st = edge_states[i]
         km = edge_lengths[i]
-        is_br = r["is_bridge"] or 0
+        is_br = bool(r["is_bridge"])
+        is_fo = bool(r["is_ford"])
+        slope = float(r["slope_deg"] or 0.0)
+        wx = state_wx.get(st, {"rain_72h": 15.0})
+        r72 = float(wx.get("rain_72h", 15.0))
+
+        # Generate human-readable reason for road status
+        _EDGE_REASONS[eid] = explain_edge_risk(
+            risk=p,
+            is_bridge=is_br,
+            is_ford=is_fo,
+            slope=slope,
+            rain_72h=r72,
+            field_cat=f_cat,
+            field_note=f_note,
+        )
+
         s = state_stats[st]
         s["tot"] += 1
         s["km"] += km
@@ -228,3 +302,16 @@ def get_latest_edge_risks() -> dict[str, float]:
     if not _LATEST_RISKS:
         refresh_risk_scores()
     return _LATEST_RISKS
+
+
+def get_latest_edge_reasons() -> dict[str, str]:
+    """Get mapping of edge_id to human-readable blockage/hazard reason."""
+    if not _EDGE_REASONS:
+        refresh_risk_scores()
+    return _EDGE_REASONS
+
+
+def get_edge_reason(edge_id: str) -> str:
+    """Get explanation reason for a single edge."""
+    reasons = get_latest_edge_reasons()
+    return reasons.get(edge_id, "Terrain & Weather Disruption Risk")
