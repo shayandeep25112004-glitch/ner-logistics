@@ -159,21 +159,61 @@ async function loadShipments() {
 }
 
 /* ------------------------------------------------------------- route ---- */
-async function planRoute() {
-  $("#routes").innerHTML = '<div class="hint">Calculating risk-aware routes &amp; alternates&hellip;</div>';
+async function planRoute(isRetry = false) {
+  if (!origin || !destination) return;
+  $("#routes").innerHTML = `
+    <div class="hint" style="display:flex;align-items:center;gap:10px;color:var(--accent);">
+      <span class="pill-dot" style="background:var(--accent);animation:pulse 1s infinite;"></span>
+      <span>Calculating AI risk-adjusted route &amp; alternates&hellip;</span>
+    </div>`;
+
   try {
     const body = {
       lat1: origin[0], lon1: origin[1], lat2: destination[0], lon2: destination[1],
       alternatives: 3, use_live_forecast: true,
     };
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
     const r = await fetch(`${API}/api/route`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+
     if (!r.ok) {
-      const errText = await r.text();
-      $("#routes").innerHTML = `<div class="hint" style="color:#ff4d4f"><b>Route Error:</b> ${errText.slice(0, 200)}</div>`;
+      if (!isRetry) {
+        // Auto-retry once in case the server was waking up or reloading
+        $("#routes").innerHTML = `
+          <div class="hint" style="color:#f5a623;">
+            ⏳ Server is warming up the road network. Retrying calculation in 2s&hellip;
+          </div>`;
+        setTimeout(() => planRoute(true), 2000);
+        return;
+      }
+
+      let errDetail = "";
+      try {
+        const errJson = await r.json();
+        errDetail = errJson.error || errJson.detail || errJson.diagnostics || JSON.stringify(errJson);
+      } catch (e) {
+        errDetail = await r.text();
+      }
+      
+      $("#routes").innerHTML = `
+        <div class="hint" style="color:#ff4d4f;line-height:1.6;">
+          <b>⚠️ Route Calculation Notice:</b><br>
+          <span style="font-size:12px;color:var(--text);">${errDetail || "Server was temporarily unable to find a connected path."}</span>
+          <div style="margin-top:10px;">
+            <button type="button" class="primary" style="padding:4px 12px;font-size:11px;" onclick="planRoute(true)">🔄 Retry Route</button>
+          </div>
+        </div>`;
       return;
     }
+
     const d = await r.json();
 
     routeLayers.forEach((l) => map.removeLayer(l));
@@ -181,17 +221,25 @@ async function planRoute() {
 
     if (!d.routes || !d.routes.length) {
       $("#routes").innerHTML = `
-        <div class="hint" style="color:#f5a623;line-height:1.5;">
-          <b>No connected corridor found</b> between selected points.<br>
-          <span style="font-size:11px;color:var(--muted);">${d.diagnostics || "Try selecting points closer to major highways (NH-27, NH-6, NH-10)."}</span>
+        <div class="hint" style="color:#f5a623;line-height:1.6;">
+          <b>⚠️ No connected road corridor found</b> between selected points.<br>
+          <span style="font-size:11px;color:var(--muted);">${d.diagnostics || "Try tapping closer to major state highways (NH-27, NH-6, NH-10)."}</span>
+          <div style="margin-top:10px;">
+            <button type="button" style="padding:4px 12px;font-size:11px;" onclick="planRoute(true)">🔄 Re-try Calculation</button>
+          </div>
         </div>`;
       return;
     }
 
     d.routes.forEach((rt, i) => {
       const colour = i === 0 ? "#7ad7ff" : i === 1 ? "#ffd166" : "#b39ddb";
-      const line = L.polyline(rt.polyline, { color: colour, weight: i === 0 ? 5 : 3.5,
-        opacity: 0.95, dashArray: i === 0 ? null : "6 6" }).addTo(map);
+      const line = L.polyline(rt.polyline, {
+        color: colour,
+        weight: i === 0 ? 5 : 3.5,
+        opacity: 0.95,
+        dashArray: i === 0 ? null : "6 6"
+      }).addTo(map);
+
       line.bindPopup(`<b>Route ${rt.rank}</b><br>${rt.distance_km} km · ` +
         `${Math.round(rt.risk_adjusted_minutes)} min risk-adjusted<br>` +
         `max segment risk ${(rt.max_segment_risk * 100).toFixed(0)}% (${rt.risk_level})` +
@@ -216,7 +264,16 @@ async function planRoute() {
       </div>`).join("") +
       `<div class="hint">Computed in ${d.computed_in_ms} ms &middot; ${d.model_note}</div>`;
   } catch (err) {
-    $("#routes").innerHTML = `<div class="hint" style="color:#ff4d4f">Network error: ${err.message}</div>`;
+    if (!isRetry) {
+      $("#routes").innerHTML = `<div class="hint" style="color:#f5a623">Server is calculating, retrying in 2s&hellip;</div>`;
+      setTimeout(() => planRoute(true), 2000);
+      return;
+    }
+    $("#routes").innerHTML = `
+      <div class="hint" style="color:#ff4d4f;line-height:1.6;">
+        <b>Connection Error:</b> ${err.message}<br>
+        <button type="button" class="primary" style="margin-top:8px;padding:4px 12px;font-size:11px;" onclick="planRoute(true)">🔄 Retry Route</button>
+      </div>`;
   }
 }
 
@@ -224,11 +281,11 @@ async function planRoute() {
 window.setQuickRoute = function(lat1, lon1, lat2, lon2, name) {
   clearRoute();
   routeMode = true;
-  $("#btnLayer").textContent = "Route mode: on";
+  $("#btnLayer").textContent = "📍 Route Mode: Active";
   $("#btnLayer").classList.add("primary");
   origin = [lat1, lon1];
   destination = [lat2, lon2];
-  originMarker = L.circleMarker(origin, { color: "#4da3ff", fillColor: "#4da3ff", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Origin: " + name.split("→")[0]);
+  originMarker = L.circleMarker(origin, { color: "#4da3ff", fillColor: "#4da3ff", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Origin: " + name.split("→")[0]).openPopup();
   destMarker = L.circleMarker(destination, { color: "#ff4d4f", fillColor: "#ff4d4f", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Destination: " + name.split("→")[1]);
   planRoute();
 };

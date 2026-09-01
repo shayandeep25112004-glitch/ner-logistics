@@ -438,10 +438,9 @@ class NetworkRouter:
         primary_edges = primary["edge_ids"]
         found_paths = [primary_edges]
 
-        # 2. Yen's K-shortest paths with capped spur points (16)
+        # 2. Yen's K-shortest paths with smart spaced spur points
         if alternatives > 1 and len(primary_edges) > 1:
             candidate_heap = []
-            spur_cap = min(16, len(primary_edges) - 1)
 
             # Node chain along primary route
             node_chain = [start_nid]
@@ -454,7 +453,15 @@ class NetworkRouter:
                 node_chain.append(nxt)
                 curr = nxt
 
-            for i in range(min(spur_cap, len(node_chain) - 1)):
+            # Select up to 6 well-spaced spur indices along the first 70% of the route
+            max_idx = min(len(node_chain) - 1, len(primary_edges))
+            search_limit = max(1, int(max_idx * 0.7))
+            step = max(1, search_limit // 6)
+            spur_indices = list(range(0, search_limit, step))[:6]
+
+            for i in spur_indices:
+                if i >= len(node_chain) or i >= len(primary_edges):
+                    continue
                 spur_node = node_chain[i]
                 root_path = primary_edges[:i]
 
