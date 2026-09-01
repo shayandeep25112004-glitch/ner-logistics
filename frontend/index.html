@@ -246,7 +246,7 @@
   .voice-eq-waves.speaking .voice-eq-bar:nth-child(4) { animation: eqWave 0.6s infinite ease-in-out 0.15s; }
   @keyframes eqWave { 0%, 100% { height: 3px; } 50% { height: 14px; background: #38bdf8; } }
 
-  /* Map Container & Floating Live Zomato Driver HUD */
+  /* Map Container & Floating Live Driver Telemetry HUD */
   .map-wrapper {
     position: relative;
     width: 100%;
@@ -255,7 +255,7 @@
   }
   #map { height: 100%; width: 100%; background: #080c18; }
 
-  .zomato-driver-hud {
+  .driver-live-hud {
     position: absolute;
     bottom: 20px;
     left: 20px;
@@ -274,7 +274,7 @@
     opacity: 1;
     pointer-events: auto;
   }
-  .zomato-driver-hud.hidden {
+  .driver-live-hud.hidden {
     transform: translateY(40px);
     opacity: 0;
     pointer-events: none;
@@ -462,8 +462,10 @@
     background: rgba(239, 68, 68, 0.2);
   }
 
-  /* Custom Vehicle Marker Styling (Zomato/Uber style) */
-  .vehicle-marker-container {
+  /* Custom Vehicle Marker Styling */
+  .custom-driver-vehicle-marker {
+    background: transparent;
+    border: none;
     position: relative;
     width: 44px;
     height: 44px;
@@ -695,8 +697,8 @@
       <div class="map-wrapper">
         <div id="map"></div>
 
-        <!-- Floating Live Zomato-Style Driver HUD Overlay -->
-        <div class="zomato-driver-hud hidden" id="driverLiveHud">
+        <!-- Floating Live Driver Telemetry HUD Overlay -->
+        <div class="driver-live-hud hidden" id="driverLiveHud">
           <div class="hud-top">
             <div class="hud-driver-profile">
               <div class="driver-avatar-circle" id="hudAvatar">🚚</div>

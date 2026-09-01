@@ -2,7 +2,7 @@
  * NER Logistics Platform — Command Centre Dashboard & Live Tracking Engine
  *
  * Real-time GIS road accessibility, interactive corridor selection,
- * live Zomato-style driver tracking simulation, verified disaster news verification,
+ * live fleet driver tracking simulation, verified disaster news verification,
  * and hands-free AI voice co-pilot with multilingual speech support.
  */
 
@@ -37,7 +37,7 @@ let voiceEngine = {
   audioCtx: null,
 };
 
-// Live Zomato Driver Tracking Simulation State
+// Live Driver Tracking Simulation State
 let driverSim = {
   active: false,
   paused: false,
@@ -893,7 +893,7 @@ window.confirmAndStartTracking = async function() {
   // 2. Close modal
   closeDispatchModal();
 
-  // 3. Launch live Zomato driver simulation
+  // 3. Launch live driver simulation
   startLiveDriverTracking({
     id: cid,
     commodity: cargo,
@@ -911,7 +911,7 @@ window.confirmAndStartTracking = async function() {
   });
 };
 
-/* ---------------------------------------------------- live zomato driver tracking engine ---- */
+/* ---------------------------------------------------- live driver tracking engine ---- */
 function interpolatePolyline(rawCoords, density = 4) {
   if (!rawCoords || rawCoords.length < 2) return rawCoords || [];
   const dense = [];
