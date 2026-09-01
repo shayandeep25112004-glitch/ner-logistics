@@ -311,17 +311,34 @@ def api_refresh_risk():
 
 @app.post("/api/route")
 def api_plan_route(req: RouteRequest):
-    router = get_router()
-    risks = get_latest_edge_risks() if req.use_live_forecast else None
-    res = router.plan_route(
-        req.lat1,
-        req.lon1,
-        req.lat2,
-        req.lon2,
-        alternatives=req.alternatives,
-        custom_risks=risks,
-    )
-    return res
+    try:
+        router = get_router()
+        if not router or not getattr(router, "nodes", None):
+            return {
+                "routes": [],
+                "computed_in_ms": 0,
+                "diagnostics": "Road network graph is currently initializing. Please try again in 5 seconds.",
+                "model_note": "A* with Yen K-alternates",
+                "snap_distance_m": [0.0, 0.0],
+            }
+        risks = get_latest_edge_risks() if req.use_live_forecast else None
+        res = router.plan_route(
+            req.lat1,
+            req.lon1,
+            req.lat2,
+            req.lon2,
+            alternatives=req.alternatives,
+            custom_risks=risks,
+        )
+        return res
+    except Exception as exc:
+        return {
+            "routes": [],
+            "computed_in_ms": 0,
+            "diagnostics": f"Route calculation error: {str(exc)}",
+            "model_note": "A* with Yen K-alternates",
+            "snap_distance_m": [0.0, 0.0],
+        }
 
 
 @app.get("/api/alerts")
@@ -361,7 +378,7 @@ def submit_field_reports(reports: List[FieldReportItem]):
                 snapped_node, _ = router.snap_node(item.lat, item.lon)
                 # Find an incident edge to node
                 incident = router.adj.get(snapped_node, [])
-                edge_id = incident[0]["edge_id"] if incident else None
+                edge_id = incident[0][1] if incident else None
             except Exception:
                 edge_id = None
 
