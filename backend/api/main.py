@@ -652,12 +652,20 @@ def update_shipment_status(shipment_id: str, payload: ShipmentStatusUpdate):
 def ping_shipment(p: GpsPingItem):
     now_str = datetime.datetime.now().isoformat()
     with db() as conn:
+        shipment = conn.execute("SELECT * FROM shipment WHERE id = ?", (p.shipment_id,)).fetchone()
+        if not shipment:
+            conn.execute(
+                """INSERT OR IGNORE INTO shipment (id, commodity, origin, destination, dest_lat, dest_lon, status, created_at)
+                   VALUES (?, 'Essential Supplies', 'Origin Depot', 'Destination Hub', ?, ?, 'in_transit', ?)""",
+                (p.shipment_id, p.lat, p.lon, now_str),
+            )
+            shipment = conn.execute("SELECT * FROM shipment WHERE id = ?", (p.shipment_id,)).fetchone()
+
         conn.execute(
             """INSERT INTO gps_ping (shipment_id, lat, lon, speed_kmph, heading, battery, pinged_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (p.shipment_id, p.lat, p.lon, p.speed_kmph, p.heading, p.battery, p.at or now_str),
         )
-        shipment = conn.execute("SELECT * FROM shipment WHERE id = ?", (p.shipment_id,)).fetchone()
 
     if not shipment or not shipment["dest_lat"]:
         return {

@@ -115,7 +115,12 @@ function clearRoute() {
   origin = destination = null;
   activeRoutes = [];
   selectedRouteIndex = 0;
-  $("#routes").innerHTML = '<div class="hint">No route planned yet. Select a Quick Corridor or click 2 points on the map.</div>';
+  $("#routes").innerHTML = '<div class="hint">No route planned yet. Select cities above, click a 1-Click Popular Route, or click 2 points on the map.</div>';
+  document.querySelectorAll(".corridor-chip").forEach(c => c.classList.remove("active"));
+  const selQuick = $("#selQuickRoad");
+  if (selQuick) selQuick.value = "";
+  const statusEl = $("#cityRouteStatus");
+  if (statusEl) statusEl.innerHTML = '<span class="pill-dot" style="background:var(--open);"></span><span>Ready &middot; Auto-calculates on selection or swap</span>';
 }
 
 /* -------------------------------------------------------------- data ---- */
@@ -819,6 +824,16 @@ function renderRoutesList(d) {
 
   $("#routes").innerHTML = routesHtml + dispatchButtonHtml +
     `<div class="hint" style="font-size:11px; color:var(--text-dim);">AI Risk-Aware Engine &middot; Computed in ${d.computed_in_ms} ms</div>`;
+
+  const statusEl = $("#cityRouteStatus");
+  if (statusEl && activeRoutes.length) {
+    const r0 = activeRoutes[selectedRouteIndex] || activeRoutes[0];
+    statusEl.innerHTML = `
+      <span class="pill-dot" style="background:var(--open);"></span>
+      <span style="color:var(--text);font-weight:600;">
+        Active: ${currentOriginName} &rarr; ${currentDestName} (${r0.distance_km} km &middot; ${formatMinutes(r0.risk_adjusted_minutes)})
+      </span>`;
+  }
 }
 
 window.selectRoute = function(idx) {
@@ -843,6 +858,57 @@ window.selectRoute = function(idx) {
   }
 };
 
+// Sync dropdowns, corridor chips, and highway selector
+function syncRouteControls(lat1, lon1, lat2, lon2, oName, dName) {
+  const oSel = $("#selCityOrigin");
+  const dSel = $("#selCityDest");
+  
+  function selectClosest(sel, lat, lon) {
+    if (!sel) return;
+    let closestVal = null, minD = 999;
+    for (let opt of sel.options) {
+      if (!opt.value) continue;
+      const [cLat, cLon] = opt.value.split(",").map(Number);
+      const d = Math.hypot(cLat - lat, cLon - lon);
+      if (d < minD) { minD = d; closestVal = opt.value; }
+    }
+    if (minD < 0.4 && closestVal) {
+      sel.value = closestVal;
+    }
+  }
+
+  selectClosest(oSel, lat1, lon1);
+  selectClosest(dSel, lat2, lon2);
+
+  // Sync corridor chips active state
+  const oText = (oName || "").toLowerCase();
+  const dText = (dName || "").toLowerCase();
+  document.querySelectorAll(".corridor-chip").forEach(chip => {
+    const txt = (chip.textContent || "").toLowerCase();
+    const isMatch = (txt.includes(oText) && txt.includes(dText)) ||
+      (oText.includes("guwahati") && dText.includes("shillong") && txt.includes("guwahati") && txt.includes("shillong")) ||
+      (oText.includes("silchar") && dText.includes("aizawl") && txt.includes("silchar") && txt.includes("aizawl")) ||
+      (oText.includes("dimapur") && dText.includes("kohima") && txt.includes("dimapur") && txt.includes("kohima")) ||
+      (oText.includes("jorhat") && dText.includes("itanagar") && txt.includes("jorhat") && txt.includes("itanagar")) ||
+      (oText.includes("gangtok") && dText.includes("mangan") && txt.includes("gangtok") && txt.includes("mangan"));
+    chip.classList.toggle("active", Boolean(isMatch));
+  });
+
+  // Sync header highway dropdown
+  const selQuick = $("#selQuickRoad");
+  if (selQuick) {
+    let matchedHwy = "";
+    for (const [hwy, preset] of Object.entries(HIGHWAY_PRESETS)) {
+      if (Math.hypot(preset[0] - lat1, preset[1] - lon1) < 0.35 &&
+          Math.hypot(preset[2] - lat2, preset[3] - lon2) < 0.35) {
+        matchedHwy = hwy;
+        break;
+      }
+    }
+    selQuick.value = matchedHwy;
+  }
+}
+
 // Quick Route Presets
 window.setQuickRoute = function(lat1, lon1, lat2, lon2, name) {
   clearRoute();
@@ -856,8 +922,10 @@ window.setQuickRoute = function(lat1, lon1, lat2, lon2, name) {
   currentOriginName = parts[0] ? parts[0].trim() : "Origin";
   currentDestName = parts[1] ? parts[1].trim() : "Destination";
 
-  originMarker = L.circleMarker(origin, { color: "#4da3ff", fillColor: "#4da3ff", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Origin: " + currentOriginName).openPopup();
-  destMarker = L.circleMarker(destination, { color: "#ff4d4f", fillColor: "#ff4d4f", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Destination: " + currentDestName);
+  syncRouteControls(lat1, lon1, lat2, lon2, currentOriginName, currentDestName);
+
+  originMarker = L.circleMarker(origin, { color: "#2563eb", fillColor: "#2563eb", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Origin: " + currentOriginName).openPopup();
+  destMarker = L.circleMarker(destination, { color: "#dc2626", fillColor: "#dc2626", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Destination: " + currentDestName);
   planRoute();
 };
 
@@ -1349,22 +1417,44 @@ function applyTheme(theme) {
 }
 
 // Quick City Route Calculation
-window.calculateCityRoute = function() {
+window.calculateCityRoute = async function() {
   const oSel = $("#selCityOrigin");
   const dSel = $("#selCityDest");
   if (!oSel || !dSel) return;
-  const oVal = oSel.value;
-  const dVal = dSel.value;
+  let oVal = oSel.value;
+  let dVal = dSel.value;
   if (!oVal || !dVal) return;
+
   if (oVal === dVal) {
-    alert("Please select different cities for Origin and Destination.");
-    return;
+    // Pick different destination
+    const nextIdx = (dSel.selectedIndex + 1) % dSel.options.length;
+    dSel.selectedIndex = nextIdx === oSel.selectedIndex ? (nextIdx + 1) % dSel.options.length : nextIdx;
+    dVal = dSel.value;
   }
+
   const [lat1, lon1] = oVal.split(",").map(Number);
   const [lat2, lon2] = dVal.split(",").map(Number);
   const oName = oSel.options[oSel.selectedIndex].text.split("(")[0].trim();
   const dName = dSel.options[dSel.selectedIndex].text.split("(")[0].trim();
-  setQuickRoute(lat1, lon1, lat2, lon2, `${oName} → ${dName}`);
+
+  const btn = $("#btnCalculateCityRoute");
+  const statusEl = $("#cityRouteStatus");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Finding Safe Route...";
+  }
+  if (statusEl) {
+    statusEl.innerHTML = `<span class="pill-dot" style="background:var(--accent);animation:pulse 1s infinite;"></span><span>Calculating ${oName} &rarr; ${dName}&hellip;</span>`;
+  }
+
+  try {
+    setQuickRoute(lat1, lon1, lat2, lon2, `${oName} → ${dName}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = "⚡ Find Safe Routes";
+    }
+  }
 };
 
 window.swapCities = function() {
@@ -1377,15 +1467,41 @@ window.swapCities = function() {
   calculateCityRoute();
 };
 
+window.onCityDropdownChange = function(changedWhich) {
+  const oSel = $("#selCityOrigin");
+  const dSel = $("#selCityDest");
+  if (!oSel || !dSel) return;
+  if (oSel.value === dSel.value) {
+    if (changedWhich === "origin") {
+      const nextIdx = (oSel.selectedIndex + 1) % dSel.options.length;
+      dSel.selectedIndex = nextIdx;
+    } else {
+      const nextIdx = (dSel.selectedIndex + 1) % oSel.options.length;
+      oSel.selectedIndex = nextIdx;
+    }
+  }
+  calculateCityRoute();
+};
+
 function bindUi() {
   routeMode = true;
-  $("#btnRefresh").onclick = refreshAll;
+  $("#btnRefresh").onclick = async () => {
+    const btn = $("#btnRefresh");
+    if (btn) btn.style.opacity = "0.6";
+    await refreshAll();
+    if (btn) btn.style.opacity = "1";
+  };
   $("#btnClearRoute").onclick = () => { clearRoute(); closeLiveTracker(); };
   
   const btnCalc = $("#btnCalculateCityRoute");
   if (btnCalc) btnCalc.onclick = calculateCityRoute;
   const btnSwap = $("#btnSwapCities");
   if (btnSwap) btnSwap.onclick = swapCities;
+
+  const selOrig = $("#selCityOrigin");
+  const selDest = $("#selCityDest");
+  if (selOrig) selOrig.onchange = () => onCityDropdownChange("origin");
+  if (selDest) selDest.onchange = () => onCityDropdownChange("dest");
 
   $("#selState").onchange = (e) => {
     state.stateFilter = e.target.value;
@@ -1426,5 +1542,9 @@ function bindUi() {
   bindUi();
   await loadHealth();
   await Promise.all([loadEdges(), loadDistricts(), loadCorridors(), loadAlerts(), loadShipments(), loadNews()]);
+  
+  // Automatically calculate initial route (Guwahati -> Shillong) so UI is populated immediately
+  calculateCityRoute();
+
   setInterval(() => { loadAlerts(); loadShipments(); loadNews(); }, 25000);
 })();

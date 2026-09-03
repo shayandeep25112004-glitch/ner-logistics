@@ -452,6 +452,13 @@
     transform: translateY(-1px);
   }
 
+  .corridor-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 2px 8px var(--accent-glow);
+  }
+
   .guide-step-pills {
     display: flex;
     align-items: center;
@@ -1539,7 +1546,12 @@
                 </select>
               </div>
 
-              <div style="display:flex; gap:8px; margin-top:4px;">
+              <div id="cityRouteStatus" style="font-size:11.5px; color:var(--text-muted); padding:4px 2px; display:flex; align-items:center; gap:6px;">
+                <span class="pill-dot" style="background:var(--open);"></span>
+                <span>Ready &middot; Auto-calculates on selection or swap</span>
+              </div>
+
+              <div style="display:flex; gap:8px; margin-top:2px;">
                 <button type="button" class="primary" id="btnCalculateCityRoute" style="flex:1; padding:9px 12px; font-size:13px; font-weight:700;">
                   ⚡ Find Safe Routes
                 </button>

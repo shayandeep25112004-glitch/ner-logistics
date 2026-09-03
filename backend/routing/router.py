@@ -435,9 +435,8 @@ class NetworkRouter:
         if not self.loaded:
             self.load_graph()
 
-        start_nid, snap1_m = self.snap_node(lat1, lon1)
-        c1 = self.components.get(start_nid, self.largest_component_id)
-        target_nid, snap2_m = self.snap_node(lat2, lon2, required_component=c1)
+        start_nid, snap1_m = self.snap_node(lat1, lon1, required_component=self.largest_component_id)
+        target_nid, snap2_m = self.snap_node(lat2, lon2, required_component=self.largest_component_id)
 
         # Handle case where start and end snap to the exact same node
         if start_nid == target_nid:
