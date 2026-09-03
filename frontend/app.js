@@ -63,7 +63,7 @@ function formatMinutes(mins) {
   return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`;
 }
 
-function activateSideTab(tabId) {
+window.activateSideTab = function(tabId) {
   const btn = document.querySelector(`.side-tab-btn[data-sidetab="${tabId}"]`);
   const pane = document.getElementById(tabId);
   if (btn && pane) {
@@ -72,7 +72,17 @@ function activateSideTab(tabId) {
     btn.classList.add('active');
     pane.classList.add('active');
   }
-}
+  // Sync top nav tab active state
+  document.querySelectorAll('.nav-tab[data-tab]').forEach(t => {
+    const isTarget = ((tabId === 'sidetab-routes' || tabId === 'sidetab-command') && t.dataset.tab === 'tab-command') ||
+                     (tabId === 'sidetab-field' && t.dataset.tab === 'tab-field') ||
+                     (tabId === 'sidetab-driver' && t.dataset.tab === 'tab-driver');
+    t.classList.toggle('active', Boolean(isTarget));
+  });
+  if (window.map) {
+    setTimeout(() => window.map.invalidateSize(), 150);
+  }
+};
 
 /* ---------------------------------------------------------------- map ---- */
 function initMap() {
@@ -755,9 +765,10 @@ function renderRoutesOnMap() {
     routeLayers.push(line);
   });
 
+  if (window.map) map.invalidateSize();
   if (activeRoutes.length && activeRoutes[0].polyline && activeRoutes[0].polyline.length) {
     const b = L.latLngBounds(activeRoutes.flatMap((r) => r.polyline));
-    map.fitBounds(b, { padding: [40, 40] });
+    map.fitBounds(b, { padding: [50, 50], maxZoom: 13, animate: true });
   }
 }
 
@@ -1178,16 +1189,29 @@ function runDriverSimTick() {
 
 function updateDriverHudTelemetry(progressFrac, currPt) {
   const pct = Math.min(100, Math.round(progressFrac * 100));
-  $("#hudProgressPct").textContent = `${pct}% Completed`;
-  $("#hudProgressFill").style.width = `${pct}%`;
+  const progressPctEl = $("#hudProgressPct");
+  if (progressPctEl) progressPctEl.textContent = `${pct}% Completed`;
+  const progressFillEl = $("#hudProgressFill");
+  if (progressFillEl) progressFillEl.style.width = `${pct}%`;
 
   const remainingDist = ((1 - progressFrac) * driverSim.totalDistanceKm).toFixed(1);
   const remainingEta = Math.max(0, Math.round((1 - progressFrac) * driverSim.totalMinutes));
   const simSpeed = Math.round(48 + Math.sin(driverSim.stepIdx * 0.15) * 8);
 
-  $("#hudDistVal").textContent = `${remainingDist} km`;
-  $("#hudEtaVal").textContent = `${remainingEta} min`;
-  $("#hudSpeedVal").textContent = `${simSpeed} km/h`;
+  const distEl = $("#hudDistVal");
+  if (distEl) distEl.textContent = `${remainingDist} km`;
+  const etaEl = $("#hudEtaVal");
+  if (etaEl) etaEl.textContent = `${remainingEta} min`;
+  const speedEl = $("#hudSpeedVal");
+  if (speedEl) speedEl.textContent = `${simSpeed} km/h`;
+
+  // Sync to side panel driver tab
+  const sideDist = $("#sideDriverDistVal");
+  if (sideDist) sideDist.textContent = `${remainingDist} km`;
+  const sideEta = $("#sideDriverEtaVal");
+  if (sideEta) sideEta.textContent = `${remainingEta} min`;
+  const sideSpeed = $("#sideDriverSpeedVal");
+  if (sideSpeed) sideSpeed.textContent = `${simSpeed} km/h`;
 
   // Dynamic checkpoint name & spoken announcement at 25%, 50%, 75%
   const segments = (driverSim.mission && driverSim.mission.route && driverSim.mission.route.segments) || [];
@@ -1195,7 +1219,12 @@ function updateDriverHudTelemetry(progressFrac, currPt) {
     const segIdx = Math.min(segments.length - 1, Math.floor(progressFrac * segments.length));
     const curSeg = segments[segIdx];
     const curName = curSeg.road || 'National Highway Corridor';
-    $("#hudCheckpointText").innerHTML = `Current: <b>${curName}</b> (${curSeg.km || 5} km · ${(curSeg.risk * 100 || 12).toFixed(0)}% Risk)`;
+    const ckText = `Current: <b>${curName}</b> (${curSeg.km || 5} km · ${(curSeg.risk * 100 || 12).toFixed(0)}% Risk)`;
+    
+    const ckEl = $("#hudCheckpointText");
+    if (ckEl) ckEl.innerHTML = ckText;
+    const sideCkEl = $("#sideDriverCheckpoint");
+    if (sideCkEl) sideCkEl.innerHTML = `Checkpoint: <b>${curName}</b>`;
 
     // Periodic hands-free checkpoint voice alert
     if (driverSim.lastSpokenCheckpoint !== curName && (pct === 25 || pct === 50 || pct === 75)) {
@@ -1230,21 +1259,99 @@ window.toggleFollowDriver = function() {
   driverSim.followDriver = !driverSim.followDriver;
   const btn = $("#btnFollowDriver");
   if (btn) btn.classList.toggle("active", driverSim.followDriver);
+  const sideBtn = $("#btnSideFollowDriver");
+  if (sideBtn) sideBtn.classList.toggle("active", driverSim.followDriver);
 };
 
 window.toggleSimPause = function() {
   driverSim.paused = !driverSim.paused;
+  const txt = driverSim.paused ? "▶️ Resume" : "⏸️ Pause";
   const btn = $("#btnPauseResume");
-  if (btn) btn.textContent = driverSim.paused ? "▶️ Resume" : "⏸️ Pause";
+  if (btn) btn.textContent = txt;
+  const sideBtn = $("#btnSidePauseResume");
+  if (sideBtn) sideBtn.textContent = txt;
 };
 
 window.cycleSpeedMultiplier = function() {
   const speeds = [1, 2, 4, 8];
   const nextIdx = (speeds.indexOf(driverSim.speedMultiplier) + 1) % speeds.length;
   driverSim.speedMultiplier = speeds[nextIdx];
+  const txt = `⚡ Speed: ${driverSim.speedMultiplier}x`;
   const btn = $("#btnSpeedMultiplier");
-  if (btn) btn.textContent = `⚡ Speed: ${driverSim.speedMultiplier}x`;
+  if (btn) btn.textContent = txt;
+  const sideBtn = $("#btnSideSpeedMult");
+  if (sideBtn) sideBtn.textContent = txt;
   runDriverSimTick();
+};
+
+let currentSideFieldCat = "landslide";
+let currentSideFieldSev = 3;
+
+window.selectSideFieldCat = function(btn, cat) {
+  currentSideFieldCat = cat;
+  document.querySelectorAll(".side-cat-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+};
+
+window.selectSideFieldSev = function(btn, sev) {
+  currentSideFieldSev = Number(sev);
+  document.querySelectorAll(".side-sev-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+};
+
+window.useCurrentMapPointForFieldReport = function() {
+  const center = map ? map.getCenter() : { lat: 25.5788, lng: 91.8933 };
+  const pt = origin ? origin : [center.lat, center.lng];
+  const input = $("#sideFieldCoords");
+  if (input) input.value = `${pt[0].toFixed(4)}, ${pt[1].toFixed(4)}`;
+};
+
+window.submitSideFieldReport = async function() {
+  const coordsStr = ($("#sideFieldCoords") && $("#sideFieldCoords").value) || "25.5788, 91.8933";
+  const parts = coordsStr.split(",").map(Number);
+  const lat = parts[0] || 25.5788;
+  const lon = parts[1] || 91.8933;
+  const note = ($("#sideFieldNote") && $("#sideFieldNote").value) || "Field hazard reported";
+  const btn = $("#btnSubmitSideField");
+  const statusEl = $("#sideFieldStatus");
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Transmitting Report...";
+  }
+
+  try {
+    const res = await fetch(`${API}/api/field-report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lat: lat,
+        lon: lon,
+        category: currentSideFieldCat,
+        severity: currentSideFieldSev,
+        note: note,
+        reported_by: "Field Scout (Side HUD)",
+        captured_at: new Date().toISOString()
+      })
+    });
+    
+    if (statusEl) {
+      statusEl.style.display = "block";
+      statusEl.innerHTML = `<span style="color:var(--open);font-weight:700;">✅ Report logged successfully! Live risk scores re-scored.</span>`;
+      setTimeout(() => { statusEl.style.display = "none"; }, 5000);
+    }
+    await refreshAll();
+  } catch (err) {
+    if (statusEl) {
+      statusEl.style.display = "block";
+      statusEl.innerHTML = `<span style="color:var(--blocked);font-weight:700;">⚠️ Could not transmit: ${err.message}</span>`;
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = "🚀 Transmit Verified Hazard Report";
+    }
+  }
 };
 
 window.triggerSimHazardAlert = function() {
@@ -1534,6 +1641,13 @@ function bindUi() {
       ? "💡 <b>Route mode active</b> — Click origin on the map, then destination to calculate safest route & alternates."
       : "Turn on <b>Route mode</b>, then click two points on the map.";
   };
+
+  // Wire sidebar panel tabs
+  document.querySelectorAll('.side-tab-btn[data-sidetab]').forEach(btn => {
+    btn.onclick = () => {
+      activateSideTab(btn.dataset.sidetab);
+    };
+  });
 }
 
 (async function main() {

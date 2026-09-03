@@ -459,6 +459,51 @@
     box-shadow: 0 2px 8px var(--accent-glow);
   }
 
+  .side-cat-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+  }
+  .side-cat-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .side-cat-btn.active {
+    background: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .side-sev-btn {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 2px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
+  }
+  .side-sev-btn:hover {
+    border-color: var(--accent);
+  }
+  .side-sev-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
   .guide-step-pills {
     display: flex;
     align-items: center;
@@ -1423,14 +1468,17 @@
       
       <!-- Side Tab Navigation -->
       <div class="side-tabs-header">
-        <button type="button" class="side-tab-btn active" data-sidetab="sidetab-routes">
-          🛣️ Route Planner
+        <button type="button" class="side-tab-btn active" data-sidetab="sidetab-routes" title="Plan safe city routes & dispatch consignments">
+          🛣️ Routes
         </button>
-        <button type="button" class="side-tab-btn" data-sidetab="sidetab-network">
-          📊 Regional Health
+        <button type="button" class="side-tab-btn" data-sidetab="sidetab-command" title="Regional accessibility monitoring & live bulletins">
+          🎛️ Command
         </button>
-        <button type="button" class="side-tab-btn" data-sidetab="sidetab-consignments">
-          🚛 Consignments &amp; News
+        <button type="button" class="side-tab-btn" data-sidetab="sidetab-field" title="Offline-first field hazard reporting & AI photo inspection">
+          📱 Field Report
+        </button>
+        <button type="button" class="side-tab-btn" data-sidetab="sidetab-driver" title="Live Driver Cockpit with Voice Navigation">
+          🚛 Driver Nav
         </button>
       </div>
 
@@ -1572,12 +1620,12 @@
         </div>
       </div>
 
-      <!-- Side Tab 2: Regional Network Health & Critical Corridors -->
-      <div class="side-tab-pane" id="sidetab-network">
+      <!-- Side Tab 2: Command Centre (Accessibility, Corridors, Consignments, Alerts) -->
+      <div class="side-tab-pane" id="sidetab-command">
         <!-- State Connectivity -->
         <div class="card">
           <div class="card-head">
-            <span>📊 State Connectivity Index</span>
+            <span>📊 State Connectivity &amp; Access Index</span>
           </div>
           <div class="scroll-box">
             <table id="tblDistricts">
@@ -1590,7 +1638,7 @@
         <!-- High-Risk Corridors -->
         <div class="card">
           <div class="card-head">
-            <span>⚠️ High-Risk Corridors</span>
+            <span>⚠️ Monitored High-Risk Corridors</span>
             <select id="selLang" style="padding:3px 8px; font-size:11px;">
               <option value="en">English</option>
               <option value="hi">हिन्दी</option>
@@ -1607,14 +1655,11 @@
             </table>
           </div>
         </div>
-      </div>
 
-      <!-- Side Tab 3: Active Consignments & News -->
-      <div class="side-tab-pane" id="sidetab-consignments">
         <!-- Active Shipments -->
         <div class="card">
           <div class="card-head">
-            <span>🚛 Essential Supply Consignments</span>
+            <span>🚛 Active Fleet Consignments</span>
             <button type="button" class="primary" style="padding:3px 8px; font-size:11px;" onclick="openDispatchModalDirect()">
               + New Consignment
             </button>
@@ -1647,6 +1692,135 @@
           </div>
           <div class="scroll-box" id="alerts">
             <div class="hint">No active alerts at this time.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side Tab 3: Field Hazard Reporter -->
+      <div class="side-tab-pane" id="sidetab-field">
+        <div class="card">
+          <div class="card-head">
+            <span style="display:flex; align-items:center; gap:6px;">📱 <b>Field Hazard Reporter</b></span>
+            <a href="/field" target="_blank" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:700;">Full Screen ↗</a>
+          </div>
+          <div style="padding:14px 16px;">
+            <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:12px; line-height:1.4;">
+              Submit on-ground disaster observations directly to the AI routing engine. Live network risk scores re-calibrate instantly.
+            </p>
+
+            <!-- Hazard Category -->
+            <label style="display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
+              1. Hazard Category
+            </label>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:12px;" id="sideFieldCats">
+              <button type="button" class="side-cat-btn active" data-cat="landslide" onclick="selectSideFieldCat(this, 'landslide')">🧗 Landslide</button>
+              <button type="button" class="side-cat-btn" data-cat="flood" onclick="selectSideFieldCat(this, 'flood')">🌊 Flood</button>
+              <button type="button" class="side-cat-btn" data-cat="rockfall" onclick="selectSideFieldCat(this, 'rockfall')">🪨 Rockfall</button>
+              <button type="button" class="side-cat-btn" data-cat="bridge_distress" onclick="selectSideFieldCat(this, 'bridge_distress')">🌉 Bridge</button>
+              <button type="button" class="side-cat-btn" data-cat="roadblock" onclick="selectSideFieldCat(this, 'roadblock')">🚧 Blocked</button>
+              <button type="button" class="side-cat-btn" data-cat="mudflow" onclick="selectSideFieldCat(this, 'mudflow')">💧 Mudflow</button>
+            </div>
+
+            <!-- Severity Level -->
+            <label style="display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
+              2. Disruption Severity
+            </label>
+            <div style="display:flex; gap:4px; margin-bottom:12px;" id="sideFieldSev">
+              <button type="button" class="side-sev-btn" data-sev="1" onclick="selectSideFieldSev(this, 1)">1 (Low)</button>
+              <button type="button" class="side-sev-btn" data-sev="2" onclick="selectSideFieldSev(this, 2)">2</button>
+              <button type="button" class="side-sev-btn active" data-sev="3" onclick="selectSideFieldSev(this, 3)">3 (Mod)</button>
+              <button type="button" class="side-sev-btn" data-sev="4" onclick="selectSideFieldSev(this, 4)">4 (High)</button>
+              <button type="button" class="side-sev-btn" data-sev="5" onclick="selectSideFieldSev(this, 5)">5 (Crit)</button>
+            </div>
+
+            <!-- Location -->
+            <label style="display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">
+              3. Incident GPS Coordinates
+            </label>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <input type="text" id="sideFieldCoords" value="25.5788, 91.8933" style="flex:1; padding:7px 10px; font-size:12px; font-family:var(--font-mono); font-weight:600;" placeholder="lat, lon" />
+              <button type="button" class="hud-btn" style="padding:6px 10px; font-size:11px;" onclick="useCurrentMapPointForFieldReport()" title="Use origin or map center point">
+                📍 Pin
+              </button>
+            </div>
+
+            <!-- Observation Notes -->
+            <label style="display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">
+              4. Field Notes / Highway Landmark
+            </label>
+            <input type="text" id="sideFieldNote" placeholder="e.g. NH-6 near Byrnihat, single lane blocked" style="width:100%; padding:8px 10px; font-size:12px; margin-bottom:12px;" value="Debris clearing in progress on mountain shoulder" />
+
+            <div id="sideFieldStatus" style="font-size:11.5px; margin-bottom:10px; display:none;"></div>
+
+            <button type="button" class="primary" id="btnSubmitSideField" style="width:100%; padding:10px; font-size:13px; font-weight:700;" onclick="submitSideFieldReport()">
+              🚀 Transmit Verified Hazard Report
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side Tab 4: Driver Voice Navigation Cockpit -->
+      <div class="side-tab-pane" id="sidetab-driver">
+        <div class="card">
+          <div class="card-head">
+            <span style="display:flex; align-items:center; gap:6px;">🎙️ <b>Driver Voice Navigation</b></span>
+            <a href="/driver" target="_blank" style="font-size:11px; color:var(--accent); text-decoration:none; font-weight:700;">Full Screen ↗</a>
+          </div>
+          <div style="padding:14px 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div>
+                <span class="badge b-open" id="sideDriverStatusBadge">🟢 Active Mission</span>
+                <span style="font-size:11px; color:var(--text-muted); margin-left:6px;" id="sideDriverCid">NER-28491</span>
+              </div>
+              <button type="button" class="btn-ticker-voice" id="btnSideDriverVoice" onclick="toggleHudVoice()">
+                🔊 Voice: ON
+              </button>
+            </div>
+
+            <!-- HUD Stats Grid -->
+            <div class="hud-stats-grid" style="margin-bottom:12px;">
+              <div class="hud-stat-box">
+                <div class="hud-stat-val" id="sideDriverEtaVal">74 min</div>
+                <div class="hud-stat-lbl">Est. Arrival</div>
+              </div>
+              <div class="hud-stat-box">
+                <div class="hud-stat-val" id="sideDriverDistVal">68 km</div>
+                <div class="hud-stat-lbl">Remaining</div>
+              </div>
+              <div class="hud-stat-box">
+                <div class="hud-stat-val" id="sideDriverSpeedVal" style="color:var(--accent)">52 km/h</div>
+                <div class="hud-stat-lbl">Speed</div>
+              </div>
+            </div>
+
+            <!-- Dynamic Checkpoint -->
+            <div class="hud-checkpoint-box" style="margin-bottom:12px;">
+              <span>📍</span>
+              <span id="sideDriverCheckpoint">Next Checkpoint: <b>NH-6 GS Road Bypass</b></span>
+            </div>
+
+            <!-- Actions Toolbar -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+              <button type="button" class="hud-btn" id="btnSideFollowDriver" onclick="toggleFollowDriver()">
+                🎯 Follow Driver
+              </button>
+              <button type="button" class="hud-btn" id="btnSidePauseResume" onclick="toggleSimPause()">
+                ⏸️ Pause / Resume
+              </button>
+              <button type="button" class="hud-btn" id="btnSideSpeedMult" onclick="cycleSpeedMultiplier()">
+                ⚡ Speed: 1x
+              </button>
+              <button type="button" class="hud-btn" style="color:var(--accent);" onclick="speakDriverSituationBriefing()">
+                📢 Situation Briefing
+              </button>
+            </div>
+
+            <button type="button" class="hud-btn danger" style="width:100%; margin-bottom:6px;" onclick="triggerSimHazardAlert()">
+              ⚠️ Simulate Landslide Reroute
+            </button>
+            <button type="button" class="hud-btn" style="width:100%; background:rgba(5,150,105,0.15); border-color:var(--open); color:var(--open);" onclick="completeConsignmentDelivery()">
+              ✅ Confirm Delivery
+            </button>
           </div>
         </div>
       </div>
@@ -1748,25 +1922,44 @@
 </div>
 
 <script src="/static/vendor/leaflet.js"></script>
-<script src="/static/idb.js?v=4.0"></script>
-<script src="/static/app.js?v=4.0"></script>
+<script src="/static/idb.js?v=5.0"></script>
+<script src="/static/app.js?v=5.0"></script>
 <script>
   // Service Worker Registration with auto-update
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=4.0').then((reg) => {
+    navigator.serviceWorker.register('/sw.js?v=5.0').then((reg) => {
       reg.update();
     }).catch(e => console.warn('[PWA] SW notice:', e));
   }
 
-  // Main Top-Level Tab switcher
+  // Top-Level Navigation: Keeps interactive map visible & activates requested tool in the side panel
   document.querySelectorAll('.nav-tab[data-tab]').forEach(tab => {
     tab.addEventListener('click', () => {
+      const tabTarget = tab.dataset.tab;
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       tab.classList.add('active');
-      const target = document.getElementById(tab.dataset.tab);
-      if (target) target.classList.add('active');
-      if (tab.dataset.tab === 'tab-command' && window.map) {
+
+      if (tabTarget === 'tab-field') {
+        // Open Field Reporter in sidebar next to the map
+        if (window.activateSideTab) activateSideTab('sidetab-field');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const cmd = document.getElementById('tab-command');
+        if (cmd) cmd.classList.add('active');
+      } else if (tabTarget === 'tab-driver') {
+        // Open Driver Voice Nav in sidebar next to the map
+        if (window.activateSideTab) activateSideTab('sidetab-driver');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const cmd = document.getElementById('tab-command');
+        if (cmd) cmd.classList.add('active');
+      } else {
+        // Command Centre
+        if (window.activateSideTab) activateSideTab('sidetab-command');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const target = document.getElementById('tab-command');
+        if (target) target.classList.add('active');
+      }
+
+      if (window.map) {
         setTimeout(() => window.map.invalidateSize(), 150);
       }
     });
@@ -1775,11 +1968,7 @@
   // Right Side Panel Tab switcher
   document.querySelectorAll('.side-tab-btn[data-sidetab]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.side-tab-pane').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      const target = document.getElementById(btn.dataset.sidetab);
-      if (target) target.classList.add('active');
+      if (window.activateSideTab) activateSideTab(btn.dataset.sidetab);
     });
   });
 </script>
