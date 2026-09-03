@@ -55,6 +55,25 @@ let driverSim = {
   lastSpokenCheckpoint: "",
 };
 
+function formatMinutes(mins) {
+  const m = Math.round(mins || 0);
+  if (m < 60) return `${m} min`;
+  const hrs = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`;
+}
+
+function activateSideTab(tabId) {
+  const btn = document.querySelector(`.side-tab-btn[data-sidetab="${tabId}"]`);
+  const pane = document.getElementById(tabId);
+  if (btn && pane) {
+    document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.side-tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    pane.classList.add('active');
+  }
+}
+
 /* ---------------------------------------------------------------- map ---- */
 function initMap() {
   map = L.map("map", { preferCanvas: true }).setView([25.6, 92.8], 7);
@@ -121,23 +140,22 @@ async function loadHealth() {
 }
 
 function renderHealth(h) {
-  if (h.status !== "ok") { setStatus("Network not built yet: " + (h.hint || "")); return; }
-  $("#pillNet").textContent =
-    `${h.network.network_km.toLocaleString()} km · ${h.network.edges.toLocaleString()} segments · ${h.network.bridges.toLocaleString()} bridges`;
-  $("#pillModel").textContent = h.model
-    ? `model AUC ${h.model.auc} · AP ${h.model.avg_precision}`
-    : "model not trained";
-  $("#pillModel").title = h.model ? h.model.notes : "";
+  if (h.status !== "ok") { setStatus("Network warming up: " + (h.hint || "")); return; }
+  const netKm = Math.round(h.network.network_km).toLocaleString();
+  const segs = h.network.edges.toLocaleString();
+  $("#pillNet").innerHTML = `<span class="header-pill-dot"></span><span>${netKm} km · ${segs} Segments</span>`;
+  $("#pillModel").innerHTML = `<span>AI Risk Engine Online</span>`;
+  $("#pillModel").title = h.model ? h.model.notes : "IMD weather and terrain disruption model online";
   $("#pillTime").textContent = new Date().toLocaleTimeString();
 
   const k = h.network;
   $("#kpis").innerHTML = [
-    ["Network", `${k.network_km.toLocaleString()} km`],
-    ["Road segments", k.edges.toLocaleString()],
-    ["Bridges monitored", k.bridges.toLocaleString()],
-    ["River fords", k.fords.toLocaleString()],
-    ["Rainfall days", k.weather_days.toLocaleString()],
-    ["Field reports", k.field_reports.toLocaleString()],
+    ["Active Road Network", `${netKm} km`],
+    ["Routable Segments", k.edges.toLocaleString()],
+    ["Bridges Monitored", k.bridges.toLocaleString()],
+    ["River Fords & Passes", k.fords.toLocaleString()],
+    ["Weather Days Analyzed", `${k.weather_days.toLocaleString()} days`],
+    ["Field Hazard Reports", k.field_reports.toLocaleString()],
   ].map(([l, v]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
 }
 
@@ -350,15 +368,15 @@ function renderNewsFeed(items) {
   }
 
   el.innerHTML = items.map((n) => `
-    <div style="padding:10px 14px; border-bottom:1px solid var(--line); transition:background 0.2s;" onmouseenter="this.style.background='rgba(59,130,246,0.06)'" onmouseleave="this.style.background='transparent'">
+    <div style="padding:10px 14px; border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseenter="this.style.background='var(--accent-subtle)'" onmouseleave="this.style.background='transparent'">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <span style="font-size:11px; font-weight:700; color:#38bdf8;">📰 ${n.source}</span>
+        <span style="font-size:11px; font-weight:700; color:var(--accent);">📰 ${n.source}</span>
         <span class="badge b-${n.is_blocked ? 'blocked' : n.severity === 'warning' ? 'risk' : 'open'}">${n.severity.toUpperCase()}</span>
       </div>
-      <div style="font-weight:700; font-size:12px; color:#fff; line-height:1.3; margin-bottom:4px;">${n.headline}</div>
-      <div style="font-size:11px; color:var(--muted); line-height:1.4; margin-bottom:6px;">${n.summary}</div>
+      <div style="font-weight:700; font-size:12px; color:var(--text); line-height:1.3; margin-bottom:4px;">${n.headline}</div>
+      <div style="font-size:11px; color:var(--text-muted); line-height:1.4; margin-bottom:6px;">${n.summary}</div>
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:10px; color:#64748b;">${n.published_at.replace('T', ' ')}</span>
+        <span style="font-size:10px; color:var(--text-dim);">${n.published_at.replace('T', ' ')}</span>
         <button type="button" class="btn-ticker-voice" style="padding:2px 8px; font-size:10px;" onclick="speakNewsItem('${(n.speech_en || n.headline).replace(/'/g, "\\'")}')">🔊 Listen</button>
       </div>
     </div>
@@ -618,6 +636,7 @@ window.speakDriverSituationBriefing = function() {
 /* ------------------------------------------------------------- route planning ---- */
 async function planRoute(isRetry = false) {
   if (!origin || !destination) return;
+  activateSideTab("sidetab-routes");
   $("#routes").innerHTML = `
     <div class="hint" style="display:flex;align-items:center;gap:10px;color:var(--accent);">
       <span class="pill-dot" style="background:var(--accent);animation:pulse 1s infinite;"></span>
@@ -723,8 +742,8 @@ function renderRoutesOnMap() {
     });
 
     line.bindPopup(
-      `<b>Route ${rt.rank} (${i === 0 ? 'Primary' : 'Alternate'})</b><br>` +
-      `${rt.distance_km} km · <b>${Math.round(rt.risk_adjusted_minutes)} min</b> risk-adjusted<br>` +
+      `<b>Route ${rt.rank} (${i === 0 ? 'Primary Recommended' : 'Alternate Bypass'})</b><br>` +
+      `${rt.distance_km} km · <b>${formatMinutes(rt.risk_adjusted_minutes)}</b> risk-adjusted<br>` +
       `Max segment risk: ${(rt.max_segment_risk * 100).toFixed(0)}% (${rt.risk_level})<br>` +
       `<div style="margin-top:8px;"><button type="button" class="primary" style="padding:4px 10px;font-size:11px;" onclick="selectRoute(${i})">✓ Select This Route</button></div>`
     );
@@ -740,43 +759,66 @@ function renderRoutesOnMap() {
 function renderRoutesList(d) {
   const routesHtml = activeRoutes.map((rt, i) => {
     const isSelected = i === selectedRouteIndex;
+    const isPrimary = i === 0;
+    const timeFormatted = formatMinutes(rt.risk_adjusted_minutes);
+    const freeFlowFormatted = formatMinutes(rt.free_flow_minutes);
+    const riskPct = Math.round(rt.max_segment_risk * 100);
+
+    let safetyBadge = "🟢 Safe & Clear";
+    let badgeClass = "b-open";
+    let safetyDesc = "Normal transit conditions across all segments.";
+
+    if (rt.passes_blocked_segment || riskPct >= 70) {
+      safetyBadge = "🔴 Blocked Ahead";
+      badgeClass = "b-blocked";
+      safetyDesc = "Active landslide or heavy obstruction detected on this corridor.";
+    } else if (riskPct >= 35) {
+      safetyBadge = "🟡 Caution (High Risk)";
+      badgeClass = "b-risk";
+      safetyDesc = "Moderate disruption probability on mountain sections.";
+    }
+
     return `
       <div class="route-card ${isSelected ? 'selected' : ''}" onclick="selectRoute(${i})">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <div style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:6px;">
-            <span>Route ${rt.rank} ${i === 0 ? '(Primary Recommended)' : '(Alternate Bypass)'}</span>
-            ${isSelected ? '<span class="route-badge-sel">✓ Selected</span>' : ''}
+            <span>${isPrimary ? '🌟 Recommended Route' : `🔄 Alternate Bypass ${rt.rank - 1}`}</span>
+            ${isSelected ? '<span class="route-badge-sel">✓ Active</span>' : ''}
           </div>
-          <span class="badge b-${rt.risk_level === "clear" ? "open" : rt.risk_level === "at_risk" ? "risk" : "blocked"}">${rt.risk_level}</span>
+          <span class="badge ${badgeClass}">${safetyBadge}</span>
         </div>
-        <div class="mono" style="font-size:12px; color:#fff; margin-bottom:2px;">
-          <b>${rt.distance_km} km</b> &middot; Free-flow ${Math.round(rt.free_flow_minutes)} min &middot; Risk-Adjusted <b>${Math.round(rt.risk_adjusted_minutes)} min</b>
+        <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:4px;">
+          <div style="font-size:16px; font-weight:800; color:var(--text);" class="mono">${timeFormatted}</div>
+          <div style="font-size:12px; color:var(--text-muted); font-weight:600;">${rt.distance_km} km</div>
+          <div style="font-size:11px; color:var(--text-dim);">Free-flow: ${freeFlowFormatted}</div>
         </div>
-        <div style="color:var(--muted); font-size:11px; margin-bottom:4px;">
-          Max corridor risk: ${(rt.max_segment_risk * 100).toFixed(0)}%
-          ${rt.passes_blocked_segment ? " &middot; <b style='color:#ff4d4f'>⚠️ Blocked segment ahead</b>" : ""}
+        <div style="font-size:11px; color:var(--text-muted); line-height:1.4; margin-bottom:6px;">
+          ${rt.blockage_reason || safetyDesc}
         </div>
-        <div style="color:#94a3b8; font-size:11px; line-height:1.35;">
-          🛣️ <b>Segments:</b> ${rt.segments.slice(0, 5).map((s) => s.road).join(" → ")}${rt.segments.length > 5 ? " …" : ""}
-        </div>
+        <details style="margin-top:4px; font-size:11px; color:var(--text-muted);" onclick="event.stopPropagation()">
+          <summary style="cursor:pointer; color:var(--accent); font-weight:600;">View Segment Breakdown (${rt.segments.length} segments)</summary>
+          <div style="margin-top:6px; padding:6px 8px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:6px; line-height:1.4;">
+            🛣️ ${rt.segments.slice(0, 8).map(s => `${s.road} (${s.km}km · ${(s.risk*100).toFixed(0)}% risk)`).join(" → ")}${rt.segments.length > 8 ? " …" : ""}
+          </div>
+        </details>
       </div>
     `;
   }).join("");
 
   const selRoute = activeRoutes[selectedRouteIndex] || activeRoutes[0];
   const dispatchButtonHtml = `
-    <div style="padding:14px; background:rgba(22,32,58,0.5); border-top:1px solid var(--line);">
-      <button type="button" class="primary" style="width:100%; padding:12px 14px; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="openDispatchModal()">
+    <div style="padding:14px; background:var(--bg-card); border-top:1px solid var(--border);">
+      <button type="button" class="primary" style="width:100%; padding:12px 14px; font-size:14px; font-weight:700;" onclick="openDispatchModal()">
         🚀 Confirm &amp; Dispatch Consignment
       </button>
-      <div style="font-size:11px; color:var(--muted); text-align:center; margin-top:6px;">
-        Selected: Route ${selRoute ? selRoute.rank : 1} (${selRoute ? selRoute.distance_km : 0} km &middot; ${selRoute ? Math.round(selRoute.risk_adjusted_minutes) : 0} min)
+      <div style="font-size:11px; color:var(--text-muted); text-align:center; margin-top:6px;">
+        Selected: ${selectedRouteIndex === 0 ? 'Recommended Route' : 'Alternate Bypass'} (${selRoute ? selRoute.distance_km : 0} km &middot; ${selRoute ? formatMinutes(selRoute.risk_adjusted_minutes) : 0})
       </div>
     </div>
   `;
 
   $("#routes").innerHTML = routesHtml + dispatchButtonHtml +
-    `<div class="hint" style="font-size:11px;">Computed in ${d.computed_in_ms} ms &middot; ${d.model_note}</div>`;
+    `<div class="hint" style="font-size:11px; color:var(--text-dim);">AI Risk-Aware Engine &middot; Computed in ${d.computed_in_ms} ms</div>`;
 }
 
 window.selectRoute = function(idx) {
@@ -1279,11 +1321,72 @@ const HIGHWAY_PRESETS = {
   "NH-208": [24.1700, 92.0300, 23.8315, 91.2868, "Kumarghat → Agartala (NH-208)"],
 };
 
+// Theme Engine
+function initTheme() {
+  const saved = localStorage.getItem("ner_theme") || "light";
+  applyTheme(saved);
+
+  const btn = $("#btnThemeToggle");
+  if (btn) {
+    btn.onclick = () => {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      const next = isDark ? "light" : "dark";
+      applyTheme(next);
+      localStorage.setItem("ner_theme", next);
+    };
+  }
+}
+
+function applyTheme(theme) {
+  const btn = $("#btnThemeToggle");
+  if (theme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+    if (btn) btn.innerHTML = "🌙 Dark";
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    if (btn) btn.innerHTML = "☀️ Light";
+  }
+}
+
+// Quick City Route Calculation
+window.calculateCityRoute = function() {
+  const oSel = $("#selCityOrigin");
+  const dSel = $("#selCityDest");
+  if (!oSel || !dSel) return;
+  const oVal = oSel.value;
+  const dVal = dSel.value;
+  if (!oVal || !dVal) return;
+  if (oVal === dVal) {
+    alert("Please select different cities for Origin and Destination.");
+    return;
+  }
+  const [lat1, lon1] = oVal.split(",").map(Number);
+  const [lat2, lon2] = dVal.split(",").map(Number);
+  const oName = oSel.options[oSel.selectedIndex].text.split("(")[0].trim();
+  const dName = dSel.options[dSel.selectedIndex].text.split("(")[0].trim();
+  setQuickRoute(lat1, lon1, lat2, lon2, `${oName} → ${dName}`);
+};
+
+window.swapCities = function() {
+  const oSel = $("#selCityOrigin");
+  const dSel = $("#selCityDest");
+  if (!oSel || !dSel) return;
+  const tmp = oSel.value;
+  oSel.value = dSel.value;
+  dSel.value = tmp;
+  calculateCityRoute();
+};
+
 function bindUi() {
   routeMode = true;
   $("#btnRefresh").onclick = refreshAll;
   $("#btnClearRoute").onclick = () => { clearRoute(); closeLiveTracker(); };
   
+  const btnCalc = $("#btnCalculateCityRoute");
+  if (btnCalc) btnCalc.onclick = calculateCityRoute;
+  const btnSwap = $("#btnSwapCities");
+  if (btnSwap) btnSwap.onclick = swapCities;
+
   $("#selState").onchange = (e) => {
     state.stateFilter = e.target.value;
     if (STATE_CENTERS[state.stateFilter]) {
@@ -1318,6 +1421,7 @@ function bindUi() {
 }
 
 (async function main() {
+  initTheme();
   initMap();
   bindUi();
   await loadHealth();

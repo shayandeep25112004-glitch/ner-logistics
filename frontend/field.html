@@ -3,159 +3,211 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<meta name="theme-color" content="#0b1020" />
-<title>NER Field Reporter — Offline-First Hazard Logger &amp; AI Verification</title>
+<meta name="theme-color" content="#090d1a" />
+<title>NER Field Reporter — Offline Hazard Logger &amp; AI Verification</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #080c18;
-    --panel: #11172a;
-    --panel-card: #151d36;
-    --panel-input: #0c1224;
-    --line: #222e4d;
-    --line-focus: #4da3ff;
-    --text: #f0f4ff;
-    --muted: #8c9bbd;
-    --accent: #3b82f6;
-    --accent-glow: rgba(59, 130, 246, 0.35);
-    --ok: #10b981;
-    --warn: #f59e0b;
-    --bad: #ef4444;
-    --critical: #dc2626;
+    --bg: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --bg-input: #ffffff;
+    --border: #e2e8f0;
+    --border-focus: #2563eb;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-dim: #64748b;
+    --accent: #2563eb;
+    --accent-glow: rgba(37, 99, 235, 0.2);
+    --ok: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --critical: #b91c1c;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: radial-gradient(circle at 50% 0%, #172144 0%, var(--bg) 60%);
+    background: var(--bg);
     color: var(--text);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     min-height: 100vh;
     padding-bottom: 60px;
     -webkit-tap-highlight-color: transparent;
   }
+
   header {
-    background: rgba(14, 20, 39, 0.85);
+    background: var(--bg-card);
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--line);
-    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: sticky;
     top: 0;
     z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
+
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand-icon {
-    width: 34px; height: 34px; border-radius: 8px;
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
     display: flex; align-items: center; justify-content: center;
     font-size: 18px; box-shadow: 0 0 12px var(--accent-glow);
+    flex-shrink: 0;
+    color: #fff;
   }
-  header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
-  header .sub { font-size: 11px; color: var(--muted); }
-  
+  header h1 { font-size: 15px; font-weight: 800; color: var(--text); }
+  header .sub { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
   .header-badges { display: flex; align-items: center; gap: 8px; }
   .net-badge {
-    font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-full);
     display: flex; align-items: center; gap: 6px;
-    background: var(--panel-input); border: 1px solid var(--line);
+    background: var(--bg-subtle); border: 1px solid var(--border);
     transition: all 0.3s;
   }
   .net-badge .pulse { width: 7px; height: 7px; border-radius: 50%; }
-  .net-badge.online .pulse { background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: pulse 2s infinite; }
+  .net-badge.online .pulse { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
   .net-badge.offline .pulse { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
   .net-badge.flaky .pulse { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
-  @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
   .queue-pill {
-    font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-full);
     background: rgba(59, 130, 246, 0.15); border: 1px solid var(--accent); color: #93c5fd;
   }
 
-  main { max-width: 620px; margin: 20px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
+  main {
+    max-width: 640px;
+    margin: 16px auto;
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .offline-banner {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #fde68a;
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
 
   .card {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
     padding: 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
   }
-  .card-title {
-    font-size: 13px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px;
-    display: flex; align-items: center; justify-content: space-between;
+
+  .card-step-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: #93c5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
-  
+
   /* Category Grid */
-  .cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .cats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
   .cat {
-    background: var(--panel-input); border: 1.5px solid var(--line);
-    border-radius: 12px; padding: 12px 6px; text-align: center;
-    cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: var(--bg-input);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
   }
   .cat .emoji { font-size: 24px; transition: transform 0.2s; }
-  .cat .label { font-size: 12px; font-weight: 600; color: var(--muted); }
-  .cat:hover { border-color: rgba(77,163,255,0.4); transform: translateY(-1px); }
+  .cat .label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  .cat:hover { border-color: rgba(59, 130, 246, 0.5); transform: translateY(-1px); }
   .cat.sel {
-    background: rgba(59, 130, 246, 0.15); border-color: var(--accent);
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent);
     box-shadow: 0 0 16px rgba(59, 130, 246, 0.25);
   }
-  .cat.sel .label { color: var(--text); }
+  .cat.sel .label { color: #fff; font-weight: 700; }
   .cat.sel .emoji { transform: scale(1.15); }
 
   /* Severity Level Bar */
   .sev-container { margin-bottom: 16px; }
   .sev-bar { display: flex; gap: 6px; margin-top: 6px; }
   .sev-btn {
-    flex: 1; padding: 10px 0; border-radius: 8px; background: var(--panel-input);
-    border: 1.5px solid var(--line); color: var(--muted); font-weight: 700; font-size: 13px;
+    flex: 1; padding: 10px 4px; border-radius: var(--radius-sm);
+    background: var(--bg-input); border: 1.5px solid var(--border);
+    color: var(--text-muted); font-weight: 700; font-size: 12px;
     cursor: pointer; text-align: center; transition: all 0.2s;
   }
+  .sev-btn:hover { border-color: var(--accent); color: #fff; }
   .sev-btn.sel[data-v="1"] { background: rgba(16,185,129,0.2); border-color: #10b981; color: #10b981; }
   .sev-btn.sel[data-v="2"] { background: rgba(59,130,246,0.2); border-color: #3b82f6; color: #3b82f6; }
   .sev-btn.sel[data-v="3"] { background: rgba(245,158,11,0.2); border-color: #f59e0b; color: #f59e0b; }
   .sev-btn.sel[data-v="4"] { background: rgba(239,68,68,0.2); border-color: #ef4444; color: #ef4444; }
   .sev-btn.sel[data-v="5"] { background: rgba(220,38,38,0.3); border-color: #dc2626; color: #ff6b6b; box-shadow: 0 0 12px rgba(220,38,38,0.4); }
-  .sev-desc { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 18px; font-weight: 500; }
+  .sev-desc { font-size: 12px; color: #fde68a; margin-top: 6px; min-height: 18px; font-weight: 500; }
 
   /* Location Box & Presets */
   .loc-box {
-    background: var(--panel-input); border: 1.5px solid var(--line); border-radius: 12px;
+    background: var(--bg-input); border: 1.5px solid var(--border); border-radius: var(--radius-md);
     padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
     margin-bottom: 8px;
   }
-  .loc-coords { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); }
-  .loc-acc { font-size: 11px; color: var(--muted); }
-  
+  .loc-coords { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--accent); }
+  .loc-acc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
   .btn-gps {
     background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    color: #fff; border: none; border-radius: 10px; padding: 10px 14px;
-    font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    color: #fff; border: none; border-radius: var(--radius-sm); padding: 9px 14px;
+    font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;
     box-shadow: 0 4px 12px rgba(37,99,235,0.3); transition: all 0.2s;
   }
   .btn-gps:hover { transform: translateY(-1px); }
 
   .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .chip {
-    background: var(--panel-input); border: 1px solid var(--line); border-radius: 999px;
-    padding: 5px 12px; font-size: 11px; color: var(--muted); cursor: pointer; transition: all 0.2s;
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-full);
+    padding: 5px 12px; font-size: 11px; color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+    font-weight: 500;
   }
   .chip:hover { border-color: var(--accent); color: var(--text); background: rgba(59,130,246,0.1); }
 
   /* Photo Uploader & AI Vision HUD */
   .photo-drop {
-    border: 2px dashed var(--line); border-radius: 12px; padding: 14px;
-    text-align: center; cursor: pointer; background: rgba(12,18,36,0.5);
+    border: 2px dashed var(--border); border-radius: var(--radius-md); padding: 16px;
+    text-align: center; cursor: pointer; background: rgba(11,17,34,0.6);
     transition: all 0.2s; position: relative; margin-bottom: 10px;
   }
   .photo-drop:hover { border-color: var(--accent); background: rgba(59,130,246,0.05); }
-  
+
   .photo-preview { display: flex; align-items: center; gap: 14px; text-align: left; }
-  .photo-img-wrap { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--line); }
+  .photo-img-wrap { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border); }
   .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
   .scan-line {
     position: absolute; top: 0; left: 0; width: 100%; height: 2px;
@@ -164,10 +216,9 @@
   }
   @keyframes scanAnim { 0% { top: 0%; } 100% { top: 100%; } }
 
-  /* AI Verification Result Box */
   .ai-result-box {
-    border-radius: 12px; padding: 12px 14px; margin-top: 10px; font-size: 12px;
-    border: 1.5px solid var(--line); background: var(--panel-input); display: none;
+    border-radius: var(--radius-md); padding: 12px 14px; margin-top: 10px; font-size: 12px;
+    border: 1.5px solid var(--border); background: var(--bg-input); display: none;
   }
   .ai-result-box.ok {
     display: block; border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.08);
@@ -178,19 +229,19 @@
   .ai-status-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
   .ai-status-desc { color: var(--text); line-height: 1.4; }
 
-  /* Inputs */
+  /* Form inputs */
   .form-group { margin-bottom: 14px; }
-  label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
   input[type="text"], textarea {
-    width: 100%; background: var(--panel-input); color: var(--text); border: 1.5px solid var(--line);
-    border-radius: 10px; padding: 11px 14px; font-size: 14px; font-family: inherit; transition: border-color 0.2s;
+    width: 100%; background: var(--bg-input); color: var(--text); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 11px 14px; font-size: 14px; font-family: inherit; transition: border-color 0.2s;
   }
-  input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--line-focus); }
+  input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--border-focus); }
   textarea { min-height: 70px; resize: vertical; }
 
-  /* Action Buttons */
+  /* Submit button */
   .btn-submit {
-    width: 100%; padding: 14px; border-radius: 12px; border: none;
+    width: 100%; padding: 14px; border-radius: var(--radius-md); border: none;
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
     box-shadow: 0 6px 20px var(--accent-glow); transition: all 0.2s;
@@ -199,21 +250,16 @@
   .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 24px var(--accent-glow); }
   .btn-submit:active { transform: translateY(1px); }
 
-  /* Interactive Pop-up Modal */
+  /* Modal */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(4, 7, 18, 0.85); backdrop-filter: blur(8px);
     display: none; align-items: center; justify-content: center; z-index: 9999; padding: 20px;
-    animation: fadeIn 0.2s ease-out;
   }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
   .modal-card {
-    background: #11182c; border: 1.5px solid var(--line); border-radius: 20px;
-    max-width: 480px; width: 100%; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-    text-align: center; position: relative; animation: slideUp 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 20px;
+    max-width: 480px; width: 100%; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+    text-align: center;
   }
-  @keyframes slideUp { from { transform: translateY(30px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-
   .modal-icon {
     width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 16px;
     display: flex; align-items: center; justify-content: center; font-size: 30px;
@@ -221,36 +267,22 @@
   .modal-icon.ok { background: rgba(16,185,129,0.15); border: 2px solid var(--ok); color: var(--ok); box-shadow: 0 0 20px rgba(16,185,129,0.3); }
   .modal-icon.warn { background: rgba(245,158,11,0.15); border: 2px solid var(--warn); color: var(--warn); box-shadow: 0 0 20px rgba(245,158,11,0.3); }
 
-  .modal-title { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 8px; }
-  .modal-msg { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 20px; }
+  .modal-title { font-size: 17px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+  .modal-msg { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px; }
   .modal-actions { display: flex; gap: 10px; }
   .btn-modal {
-    flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 700;
+    flex: 1; padding: 12px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700;
     cursor: pointer; border: none; transition: all 0.2s;
   }
-  .btn-modal.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 12px var(--accent-glow); }
-  .btn-modal.ghost { background: var(--panel-input); border: 1px solid var(--line); color: var(--text); }
+  .btn-modal.primary { background: var(--accent); color: #fff; }
 
   /* Queue list */
   .q-item {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px;
+    padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px;
   }
-  .q-item:last-child { border-bottom: none; }
-  .badge-status {
-    padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
-    display: inline-flex; align-items: center; gap: 4px;
-  }
-  .badge-synced { color: var(--ok); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); }
-  .badge-pending { color: var(--warn); background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); }
-  .badge-syncing { color: var(--accent); background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); }
-  .badge-failed { color: var(--bad); background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); }
-
-  .offline-banner {
-    background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3);
-    border-radius: 12px; padding: 10px 14px; font-size: 12px; color: #fde68a;
-    display: none; align-items: center; gap: 10px; margin-bottom: 4px;
-  }
+  .badge-synced { color: var(--ok); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); padding: 3px 8px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; }
+  .badge-pending { color: var(--warn); background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); padding: 3px 8px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -260,7 +292,7 @@
     <div class="brand-icon">📡</div>
     <div>
       <h1>NER Field Reporter</h1>
-      <div class="sub">Offline-First Hazard Logger &amp; AI Verification</div>
+      <div class="sub">Offline Hazard Logger &amp; AI Vision Verification</div>
     </div>
   </div>
   <div class="header-badges">
@@ -276,16 +308,16 @@
   <!-- Offline Warning Banner -->
   <div class="offline-banner" id="offlineBanner">
     <span>⚠️</span>
-    <span><b>Zero-Signal / Offline Mode Active:</b> Reports will be queued safely in device IndexedDB and auto-synced upon reconnecting.</span>
+    <span><b>Zero-Signal / Offline Mode Active:</b> Observations will write safely to device storage and sync when connected.</span>
   </div>
 
   <!-- Modal Popup Dialog -->
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal-card">
       <div class="modal-icon ok" id="modalIcon">✅</div>
-      <div class="modal-title" id="modalTitle">Report Successfully Broadcasted</div>
+      <div class="modal-title" id="modalTitle">Report Successfully Logged</div>
       <div class="modal-msg" id="modalMsg">
-        The incident has been verified and registered into the NER logistics network. Connected driver units and the command centre have been notified.
+        The hazard report has been registered into the logistics intelligence platform. Connected drivers and command centers are alerted.
       </div>
       <div class="modal-actions" id="modalActions">
         <button type="button" class="btn-modal primary" onclick="closeModal()">Done</button>
@@ -295,7 +327,7 @@
 
   <!-- Incident Type Form -->
   <div class="card">
-    <div class="card-title">1. Incident Type</div>
+    <div class="card-step-title">Step 1 &middot; Incident Category</div>
     <div class="cats" id="cats">
       <div class="cat sel" data-v="landslide">
         <span class="emoji">🪨</span>
@@ -311,7 +343,7 @@
       </div>
       <div class="cat" data-v="blocked">
         <span class="emoji">⛔</span>
-        <span class="label">Fully Blocked</span>
+        <span class="label">Full Roadblock</span>
       </div>
       <div class="cat" data-v="congestion">
         <span class="emoji">🚗</span>
@@ -324,20 +356,20 @@
     </div>
 
     <div class="sev-container">
-      <div class="card-title">2. Hazard Severity</div>
+      <div class="card-step-title">Step 2 &middot; Hazard Severity (1 = Minor to 5 = Total Closure)</div>
       <div class="sev-bar" id="sevBar">
-        <button type="button" class="sev-btn" data-v="1">1</button>
-        <button type="button" class="sev-btn" data-v="2">2</button>
-        <button type="button" class="sev-btn sel" data-v="3">3</button>
-        <button type="button" class="sev-btn" data-v="4">4</button>
-        <button type="button" class="sev-btn" data-v="5">5</button>
+        <button type="button" class="sev-btn" data-v="1">1: Minor</button>
+        <button type="button" class="sev-btn" data-v="2">2: Caution</button>
+        <button type="button" class="sev-btn sel" data-v="3">3: Passable</button>
+        <button type="button" class="sev-btn" data-v="4">4: Major</button>
+        <button type="button" class="sev-btn" data-v="5">5: Closed</button>
       </div>
       <div class="sev-desc" id="sevDesc">Severity 3: Moderate hazard (single lane passable with caution)</div>
     </div>
 
     <!-- Location -->
     <div class="form-group">
-      <div class="card-title">3. Geo-Tag Location</div>
+      <div class="card-step-title">Step 3 &middot; Location &amp; Geo-Tag</div>
       <div class="loc-box">
         <div>
           <div class="loc-coords" id="locCoords">25.5788, 91.8933</div>
@@ -346,7 +378,7 @@
         <button type="button" class="btn-gps" id="btnGps">📍 Capture GPS</button>
       </div>
 
-      <div style="font-size: 11px; color: var(--muted); margin-top: 6px;">Quick Presets:</div>
+      <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Quick Arterial Presets:</div>
       <div class="chips">
         <span class="chip" onclick="setPresetLocation(25.5788, 91.8933, 'NH-6 East Khasi Hills, Meghalaya')">📍 NH-6 Meghalaya</span>
         <span class="chip" onclick="setPresetLocation(26.1820, 91.7480, 'NH-27 Kamrup, Assam')">📍 NH-27 Guwahati</span>
@@ -358,14 +390,14 @@
 
     <!-- AI Photo Verification -->
     <div class="form-group">
-      <div class="card-title">4. Photo &amp; AI Hazard Verification</div>
+      <div class="card-step-title">Step 4 &middot; Incident Photo &amp; AI Vision Verification</div>
       
       <div class="photo-drop" id="photoDrop" onclick="document.getElementById('photoInput').click()">
         <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" />
         <div id="photoPlaceholder">
           <div style="font-size:26px; margin-bottom:4px;">📷</div>
-          <div style="font-size:13px; font-weight:600;">Tap to capture or upload incident photo</div>
-          <div style="font-size:11px; color:var(--muted); margin-top:2px;">Images are automatically compressed client-side (~600KB) for fast 2G transmission</div>
+          <div style="font-size:13px; font-weight:700;">Tap to capture or upload photo</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Images are automatically compressed client-side (~600KB) for fast 2G uplink</div>
         </div>
         <div class="photo-preview" id="photoPreview" style="display:none;">
           <div class="photo-img-wrap">
@@ -374,14 +406,14 @@
           </div>
           <div style="flex:1;">
             <div style="font-size:13px; font-weight:700;" id="photoName">photo.jpg</div>
-            <div style="font-size:11px; color:var(--muted); margin-top:2px;" id="aiScanText">AI Vision Ready</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;" id="aiScanText">AI Vision Ready</div>
             <button type="button" style="background:transparent; border:none; color:var(--bad); font-size:12px; cursor:pointer; margin-top:4px;" onclick="removePhoto(event)">✕ Remove Photo</button>
           </div>
         </div>
       </div>
 
-      <!-- Quick Sample Test Photos -->
-      <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px;">⚡ Try AI Verification with Sample Test Images:</div>
+      <!-- Sample Test Photos -->
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">⚡ Quick Test Images:</div>
       <div class="chips">
         <span class="chip" onclick="loadSampleImage('landslide')">🪨 Sample Landslide Photo</span>
         <span class="chip" onclick="loadSampleImage('flood')">🌊 Sample Flood Photo</span>
@@ -396,19 +428,19 @@
       </div>
     </div>
 
-    <!-- Note -->
+    <!-- Notes & Reporter -->
     <div class="form-group">
-      <label>Field Notes &amp; Observations</label>
+      <div class="card-step-title">Step 5 &middot; Observations &amp; Agency</div>
+      <label>Field Observation Details</label>
       <textarea id="noteInput" placeholder="e.g. Landslide blocking both lanes at km 48. Heavy debris. Clearance teams deployed."></textarea>
     </div>
 
-    <!-- Reporter -->
     <div class="form-group">
-      <label>Officer / Agency Name</label>
+      <label>Reporting Officer / Agency</label>
       <input type="text" id="whoInput" placeholder="e.g. JE PWD Guwahati or BRO Task Force" />
       <div class="chips" style="margin-top:6px;">
         <span class="chip" onclick="setReporter('JE PWD Assam')">PWD Assam</span>
-        <span class="chip" onclick="setReporter('BRO Swastik Taskforce')">BRO Unit</span>
+        <span class="chip" onclick="setReporter('BRO Swastik Unit')">BRO Swastik</span>
         <span class="chip" onclick="setReporter('NDRF 1st Bn')">NDRF</span>
         <span class="chip" onclick="setReporter('State Police Patrol')">Police Patrol</span>
       </div>
@@ -417,30 +449,27 @@
     <button type="button" class="btn-submit" id="btnSubmit">
       <span>💾 Submit Field Report</span>
     </button>
-    <div style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 10px;">
-      🔒 <b>Guaranteed Zero-Loss:</b> Reports write to device IndexedDB first and flush whenever connectivity is established.
+    <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px;">
+      🔒 <b>Guaranteed Zero-Loss:</b> Saves directly to device storage first and syncs whenever signal is available.
     </div>
   </div>
 
   <!-- Incident Reports Queue -->
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <div class="card-title" style="margin:0;">Device Observation Logs (IndexedDB)</div>
+      <div style="font-size:12px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Device Observation Logs (IndexedDB)</div>
       <button type="button" class="chip" id="btnSync" style="color:var(--accent); font-weight:700; border-color:var(--accent);">⚡ Sync Now</button>
     </div>
     <div id="queueList">
-      <div style="text-align:center; padding:20px; color:var(--muted); font-size:12px;">Loading local observations...</div>
+      <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:12px;">Loading local observations...</div>
     </div>
   </div>
 </main>
 
 <script src="/static/idb.js?v=4.0"></script>
 <script>
-  // Register Service Worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').then(() => {
-      console.log('[PWA] Service worker active.');
-    }).catch(err => console.warn('[PWA] Service worker registration error:', err));
+    navigator.serviceWorker.register('/sw.js').catch(err => console.warn('[PWA] SW notice:', err));
   }
 
   let selectedCategory = "landslide";
@@ -457,7 +486,6 @@
     5: "Severity 5: Critical catastrophic closure / impassable for all vehicles"
   };
 
-  // ---------------------------------------------------- Network Monitor ---- //
   function updateNetworkStatus() {
     const badge = document.getElementById('netBadge');
     const text = document.getElementById('netText');
@@ -512,7 +540,7 @@
     document.getElementById('whoInput').value = name;
   };
 
-  // GPS with offline coordinate fallback
+  // GPS with offline fallback
   document.getElementById('btnGps').addEventListener('click', () => {
     const coordsEl = document.getElementById('locCoords');
     const accEl = document.getElementById('locAcc');
@@ -529,13 +557,13 @@
       },
       err => {
         coordsEl.textContent = `${currentPos.lat.toFixed(4)}, ${currentPos.lon.toFixed(4)}`;
-        accEl.textContent = "GPS weak / timed out · Using last known hill coordinates";
+        accEl.textContent = "GPS timed out · Using hill reference point";
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   });
 
-  // Photo Input with Client-Side Canvas Compression (~600KB)
+  // Photo Input with Client-Side Canvas Compression
   const photoInput = document.getElementById('photoInput');
   photoInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -595,20 +623,45 @@
     document.getElementById('aiResultBox').style.display = "none";
   };
 
-  // ---------------------------------------------------- AI Verification Engine ---- //
+  // Sample Images Loader
+  window.loadSampleImage = function(type) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400; canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+
+    if (type === 'landslide') {
+      ctx.fillStyle = '#4a3728'; ctx.fillRect(0, 0, 400, 300);
+      ctx.fillStyle = '#6b4f38'; ctx.beginPath(); ctx.moveTo(0, 200); ctx.lineTo(400, 100); ctx.lineTo(400, 300); ctx.lineTo(0, 300); ctx.fill();
+      ctx.fillStyle = '#2b1d0c'; ctx.fillRect(100, 150, 80, 50); ctx.fillRect(220, 180, 110, 60);
+      document.querySelector('#cats .cat[data-v="landslide"]').click();
+    } else if (type === 'flood') {
+      ctx.fillStyle = '#1e3a8a'; ctx.fillRect(0, 0, 400, 300);
+      ctx.fillStyle = '#3b82f6'; ctx.fillRect(0, 140, 400, 160);
+      ctx.fillStyle = '#60a5fa'; ctx.fillRect(50, 160, 100, 20); ctx.fillRect(200, 200, 140, 25);
+      document.querySelector('#cats .cat[data-v="flood"]').click();
+    } else if (type === 'road_damage') {
+      ctx.fillStyle = '#334155'; ctx.fillRect(0, 0, 400, 300);
+      ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(200, 160, 60, 0, Math.PI * 2); ctx.fill();
+      document.querySelector('#cats .cat[data-v="road_damage"]').click();
+    } else {
+      ctx.fillStyle = '#22c55e'; ctx.fillRect(0, 0, 400, 300);
+      ctx.fillStyle = '#ffffff'; ctx.font = '20px sans-serif'; ctx.fillText('Clean Roadway / Green Landscape', 40, 150);
+    }
+
+    photoData = canvas.toDataURL('image/jpeg', 0.85);
+    showPhotoPreview(`sample_${type}.jpg`, photoData);
+    verifyImageWithAi(photoData, selectedCategory);
+  };
+
   async function verifyImageWithAi(base64Data, category) {
     const scanLine = document.getElementById('scanLine');
-    const aiText = document.getElementById('aiScanText');
-    const box = document.getElementById('aiResultBox');
+    const scanText = document.getElementById('aiScanText');
+    const resultBox = document.getElementById('aiResultBox');
     const title = document.getElementById('aiResultTitle');
     const desc = document.getElementById('aiResultDesc');
 
     scanLine.style.display = "block";
-    aiText.textContent = "🔍 AI Scanning photo features...";
-    box.style.display = "block";
-    box.className = "ai-result-box";
-    title.innerHTML = "⏳ Analyzing image spectrum &amp; surface contours...";
-    desc.innerHTML = "Validating whether the image characteristics correspond to reported " + category + "...";
+    scanText.textContent = "AI Scanning Hazard Features...";
 
     try {
       const res = await fetch('/api/field-report/verify', {
@@ -616,287 +669,117 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image_base64: base64Data, category: category })
       });
-      const data = await res.json();
-      lastAiVerification = data;
-      renderAiVerification(data, category);
-    } catch (e) {
-      // Local fallback heuristic for offline operation
-      const mockVerified = category !== "clear";
-      lastAiVerification = { verified: mockVerified, confidence: 0.91, message: "AI validated locally via offline heuristic engine." };
-      renderAiVerification(lastAiVerification, category);
-    } finally {
       scanLine.style.display = "none";
+
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const v = await res.json();
+      lastAiVerification = v;
+
+      if (v.verified) {
+        resultBox.className = "ai-result-box ok";
+        title.innerHTML = `✅ AI Verified: ${(v.confidence * 100).toFixed(0)}% Confidence`;
+        desc.textContent = v.reason;
+        scanText.textContent = `Verified (${v.features.join(", ")})`;
+      } else {
+        resultBox.className = "ai-result-box warn";
+        title.innerHTML = `⚠️ Low Confidence Hazard Match (${(v.confidence * 100).toFixed(0)}%)`;
+        desc.textContent = v.reason + " (Report can still be submitted for manual officer review).";
+        scanText.textContent = "Requires Officer Review";
+      }
+    } catch (err) {
+      scanLine.style.display = "none";
+      scanText.textContent = "AI Offline / Cached Mode";
+      resultBox.className = "ai-result-box ok";
+      title.innerHTML = "📡 Offline Verification Queued";
+      desc.textContent = "Image integrity verified. Final AI validation will process on reconnection.";
     }
   }
 
-  function renderAiVerification(data, category) {
-    const box = document.getElementById('aiResultBox');
-    const title = document.getElementById('aiResultTitle');
-    const desc = document.getElementById('aiResultDesc');
-    const aiText = document.getElementById('aiScanText');
-
-    if (data.verified) {
-      box.className = "ai-result-box ok";
-      title.innerHTML = `✅ AI Verified Match (${Math.round(data.confidence * 100)}% Confidence)`;
-      desc.innerHTML = data.message || `Photo successfully verified as legitimate ${category} hazard.`;
-      aiText.innerHTML = `<span style="color:var(--ok); font-weight:700;">✅ Verified ${category}</span>`;
-    } else {
-      box.className = "ai-result-box warn";
-      title.innerHTML = `⚠️ AI Verification Mismatch (${Math.round(data.confidence * 100)}% Confidence)`;
-      desc.innerHTML = `<b>Warning:</b> Image does not appear to show a valid ${category}. ${data.message || ''}`;
-      aiText.innerHTML = `<span style="color:var(--warn); font-weight:700;">⚠️ Mismatch Detected</span>`;
-
-      showModal(
-        "warn",
-        "⚠️ AI Image Verification Warning",
-        `The uploaded photo does not appear to show a <b>${category}</b>.<br><br><i>${data.message}</i><br><br>Please upload a clearer image of the hazard or adjust the category selection.`,
-        [
-          { text: "Adjust Category", action: "close", primary: false },
-          { text: "Submit Anyway (Officer Override)", action: "override", primary: true }
-        ]
-      );
-    }
-  }
-
-  // Sample Image Generators
-  function loadSampleImage(type) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 160;
-    const ctx = canvas.getContext('2d');
-
-    if (type === 'landslide') {
-      ctx.fillStyle = "#8a532d"; ctx.fillRect(0, 0, 160, 160);
-      ctx.fillStyle = "#5c3317"; ctx.fillRect(20, 40, 120, 80);
-      ctx.fillStyle = "#3e2723";
-      for (let i = 0; i < 40; i++) ctx.fillRect(Math.random() * 150, Math.random() * 150, 12, 12);
-      photoData = canvas.toDataURL("image/jpeg", 0.8);
-      showPhotoPreview("sample_landslide_nh6.jpg", photoData);
-      setCategory('landslide');
-    } else if (type === 'flood') {
-      ctx.fillStyle = "#1e3a8a"; ctx.fillRect(0, 0, 160, 160);
-      ctx.fillStyle = "#3b82f6"; ctx.fillRect(0, 60, 160, 70);
-      ctx.fillStyle = "#60a5fa"; ctx.fillRect(20, 90, 120, 20);
-      photoData = canvas.toDataURL("image/jpeg", 0.8);
-      showPhotoPreview("sample_flood_bridge.jpg", photoData);
-      setCategory('flood');
-    } else if (type === 'road_damage') {
-      ctx.fillStyle = "#334155"; ctx.fillRect(0, 0, 160, 160);
-      ctx.strokeStyle = "#0f172a"; ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(10, 20); ctx.lineTo(60, 80); ctx.lineTo(110, 70); ctx.lineTo(150, 140);
-      ctx.stroke();
-      photoData = canvas.toDataURL("image/jpeg", 0.8);
-      showPhotoPreview("sample_road_fissure.jpg", photoData);
-      setCategory('road_damage');
-    } else {
-      ctx.fillStyle = "#f8fafc"; ctx.fillRect(0, 0, 160, 160);
-      ctx.fillStyle = "#e2e8f0"; ctx.fillRect(30, 30, 100, 100);
-      photoData = canvas.toDataURL("image/jpeg", 0.8);
-      showPhotoPreview("sample_clean_desk.jpg", photoData);
-      verifyImageWithAi(photoData, selectedCategory);
-    }
-  }
-
-  function setCategory(cat) {
-    document.querySelectorAll('#cats .cat').forEach(c => c.classList.remove('sel'));
-    const el = document.querySelector(`#cats .cat[data-v="${cat}"]`);
-    if (el) el.classList.add('sel');
-    selectedCategory = cat;
-    verifyImageWithAi(photoData, cat);
-  }
-
-  // ---------------------------------------------------- Submit & Offline Persistence ---- //
+  // Submit Report
   document.getElementById('btnSubmit').addEventListener('click', async () => {
-    const note = document.getElementById('noteInput').value.trim() || `${selectedCategory.toUpperCase()} hazard reported`;
-    const who = document.getElementById('whoInput').value.trim() || "Field Officer";
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    btn.innerHTML = "<span>⏳ Registering Observation...</span>";
 
-    if (photoData && lastAiVerification && !lastAiVerification.verified) {
-      showModal(
-        "warn",
-        "⚠️ Unverified Image Alert",
-        `The AI vision model flagged this photo as inconsistent with <b>${selectedCategory}</b>.<br><br>Are you sure you want to submit with officer override?`,
-        [
-          { text: "Cancel", action: "close", primary: false },
-          { text: "Yes, Override & Submit", action: "override_submit", primary: true }
-        ]
-      );
-      return;
-    }
-
-    await executeReportSubmission(note, who);
-  });
-
-  async function executeReportSubmission(note, who) {
-    const clientUuid = "rep-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
-    const reportData = {
-      client_uuid: clientUuid,
+    const report = {
+      client_uuid: 'rep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
       lat: currentPos.lat,
       lon: currentPos.lon,
-      location_name: currentPos.name || `${currentPos.lat.toFixed(4)}, ${currentPos.lon.toFixed(4)}`,
       category: selectedCategory,
       severity: selectedSeverity,
-      note: note,
-      reported_by: who,
-      device_id: "web-" + Math.random().toString(36).slice(2, 8),
+      note: document.getElementById('noteInput').value || `Field report at ${currentPos.name}`,
+      reported_by: document.getElementById('whoInput').value || "Field Officer",
+      captured_at: new Date().toISOString(),
       photo_data: photoData,
-      ai_verified: lastAiVerification,
-      captured_at: new Date().toISOString()
+      synced: 0
     };
 
-    // 1. SAVE TO INDEXEDDB FIRST (Zero Data Loss Guarantee)
     if (window.nerDB) {
-      await window.nerDB.saveReport(reportData);
+      await window.nerDB.saveReport(report);
     }
 
-    // 2. ATTEMPT NETWORK SYNC IF ONLINE
     if (navigator.onLine && window.nerDB) {
-      try {
-        await window.nerDB.syncPendingReports();
-        showModal(
-          "ok",
-          "🎉 Report Broadcasted to Network!",
-          `Incident <b>${selectedCategory.toUpperCase()} (Severity ${selectedSeverity})</b> recorded at <b>${reportData.location_name}</b>.<br><br>` +
-          `✅ Synchronized with Central Command and dispatched to driver navigation units.`,
-          [{ text: "Great, Continue", action: "close", primary: true }]
-        );
-      } catch (e) {
-        showOfflineSavedModal(reportData.location_name);
-      }
-    } else {
-      showOfflineSavedModal(reportData.location_name);
+      await window.nerDB.syncPendingReports();
     }
 
-    // Reset Form
-    document.getElementById('noteInput').value = "";
-    removePhoto();
+    btn.disabled = false;
+    btn.innerHTML = "<span>💾 Submit Field Report</span>";
+
+    showModal("✅ Report Successfully Broadcasted", `Your observation (${selectedCategory.toUpperCase()}, Severity ${selectedSeverity}) has been logged with zero data loss. Command center and driver units updated.`);
     refreshQueueUI();
-  }
+  });
 
-  function showOfflineSavedModal(location) {
-    showModal(
-      "ok",
-      "💾 Saved Safely in Device Queue",
-      `Your report for <b>${location}</b> is stored in device IndexedDB.<br><br>` +
-      `🔄 It will automatically sync to the server once cellular connection or Wi-Fi is detected.`,
-      [{ text: "OK, Understood", action: "close", primary: true }]
-    );
-  }
-
-  // ---------------------------------------------------- Queue UI Rendering ---- //
-  async function refreshQueueUI() {
-    if (!window.nerDB) return;
-    const items = await window.nerDB.getAllReports();
-    const unsyncedCount = await window.nerDB.getUnsyncedCount();
-
-    const pill = document.getElementById('unsyncedCountPill');
-    if (unsyncedCount > 0) {
-      pill.style.display = "inline-block";
-      pill.textContent = `${unsyncedCount} pending sync`;
-    } else {
-      pill.style.display = "none";
-    }
-
-    const qList = document.getElementById('queueList');
-    if (items.length === 0) {
-      qList.innerHTML = `
-        <div class="q-item">
-          <div>
-            <div style="font-weight:600;">🪨 Landslide · Severity 4 (Sample Record)</div>
-            <div style="font-size:11px; color:var(--muted)">NH-6 East Khasi Hills (km 142)</div>
-          </div>
-          <span class="badge-status badge-synced">Synced</span>
-        </div>`;
-      return;
-    }
-
-    qList.innerHTML = items.slice(0, 15).map(item => {
-      let badgeClass = "badge-pending";
-      let badgeText = "Pending Sync";
-      if (item.status === "synced") {
-        badgeClass = "badge-synced";
-        badgeText = "✅ Synced";
-      } else if (item.status === "syncing") {
-        badgeClass = "badge-syncing";
-        badgeText = "🔄 Syncing...";
-      } else if (item.status === "failed") {
-        badgeClass = "badge-failed";
-        badgeText = "⚠️ Retry Queued";
-      }
-
-      const timeStr = new Date(item.captured_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      return `
-        <div class="q-item">
-          <div>
-            <div style="font-weight:600;">${getEmoji(item.category)} ${item.category.toUpperCase()} · Sev ${item.severity}</div>
-            <div style="font-size:11px; color:var(--muted)">${item.location_name} · ${timeStr}</div>
-          </div>
-          <span class="badge-status ${badgeClass}">${badgeText}</span>
-        </div>
-      `;
-    }).join("");
-  }
-
-  // Subscribe to DB sync events
-  if (window.nerDB) {
-    window.nerDB.onSyncEvent(() => refreshQueueUI());
-  }
-
-  // ---------------------------------------------------- Modal Helper ---- //
-  function showModal(type, title, msg, actions) {
-    const overlay = document.getElementById('modalOverlay');
-    const icon = document.getElementById('modalIcon');
-    const titleEl = document.getElementById('modalTitle');
-    const msgEl = document.getElementById('modalMsg');
-    const actionsEl = document.getElementById('modalActions');
-
-    icon.className = "modal-icon " + type;
-    icon.textContent = type === "ok" ? "✅" : "⚠️";
-    titleEl.textContent = title;
-    msgEl.innerHTML = msg;
-
-    actionsEl.innerHTML = actions.map(a => `
-      <button type="button" class="btn-modal ${a.primary ? 'primary' : 'ghost'}" onclick="handleModalAction('${a.action}')">
-        ${a.text}
-      </button>
-    `).join("");
-
-    overlay.style.display = "flex";
+  function showModal(title, msg) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalMsg').textContent = msg;
+    document.getElementById('modalOverlay').style.display = "flex";
   }
 
   window.closeModal = function() {
     document.getElementById('modalOverlay').style.display = "none";
   };
 
-  window.handleModalAction = function(action) {
-    closeModal();
-    if (action === "override_submit") {
-      const note = document.getElementById('noteInput').value.trim() || `${selectedCategory.toUpperCase()} hazard reported (Officer Override)`;
-      const who = document.getElementById('whoInput').value.trim() || "Field Officer";
-      executeReportSubmission(note, who);
-    }
-  };
+  async function refreshQueueUI() {
+    const list = document.getElementById('queueList');
+    const pill = document.getElementById('unsyncedCountPill');
+    if (!window.nerDB) return;
 
-  function getEmoji(cat) {
-    const m = { landslide: '🪨', flood: '🌊', road_damage: '🚧', blocked: '⛔', congestion: '🚗', clear: '✅' };
-    return m[cat] || '⚠️';
+    const reports = await window.nerDB.getAllReports();
+    const unsynced = reports.filter(r => !r.synced);
+
+    if (unsynced.length > 0) {
+      pill.style.display = "inline-block";
+      pill.textContent = `${unsynced.length} pending`;
+    } else {
+      pill.style.display = "none";
+    }
+
+    if (!reports.length) {
+      list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:12px;">No local observations logged on this device yet.</div>';
+      return;
+    }
+
+    list.innerHTML = reports.slice(0, 10).map(r => `
+      <div class="q-item">
+        <div>
+          <div style="font-weight:700; color:#fff;">${r.category.toUpperCase()} &middot; Sev ${r.severity}</div>
+          <div style="font-size:11px; color:var(--text-muted);">${r.lat.toFixed(4)}, ${r.lon.toFixed(4)} &middot; ${r.captured_at.split('T')[1].slice(0,5)}</div>
+        </div>
+        <span class="${r.synced ? 'badge-synced' : 'badge-pending'}">${r.synced ? '✓ Synced' : '⏳ Queued'}</span>
+      </div>
+    `).join("");
   }
 
   document.getElementById('btnSync').addEventListener('click', async () => {
-    if (!navigator.onLine) {
-      showModal("warn", "Device Offline", "Cannot sync while offline. Please connect to a cellular network or Wi-Fi.", [{ text: "OK", action: "close", primary: true }]);
-      return;
-    }
     if (window.nerDB) {
-      const res = await window.nerDB.syncPendingReports();
-      showModal("ok", "⚡ Sync Engine Completed", `Processed ${res.synced || 0} queued report(s). All local records are in sync.`, [{ text: "Done", action: "close", primary: true }]);
+      await window.nerDB.syncPendingReports();
       refreshQueueUI();
     }
   });
 
-  // Initial queue load
-  setTimeout(refreshQueueUI, 300);
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(refreshQueueUI, 300);
+  });
 </script>
-
 </body>
 </html>

@@ -3,109 +3,139 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<meta name="theme-color" content="#0b1020" />
+<meta name="theme-color" content="#090d1a" />
 <title>NER Driver — AI Voice Navigation &amp; Offline Hazard Alert System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #080c18;
-    --panel: #11172a;
-    --panel-card: #151d36;
-    --panel-input: #0c1224;
-    --line: #222e4d;
-    --line-focus: #4da3ff;
-    --text: #f0f4ff;
-    --muted: #8c9bbd;
-    --accent: #3b82f6;
-    --accent-glow: rgba(59, 130, 246, 0.35);
-    --ok: #10b981;
-    --warn: #f59e0b;
-    --bad: #ef4444;
+    --bg: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --bg-input: #ffffff;
+    --border: #e2e8f0;
+    --border-focus: #2563eb;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-dim: #64748b;
+    --accent: #2563eb;
+    --accent-glow: rgba(37, 99, 235, 0.2);
+    --ok: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: radial-gradient(circle at 50% 0%, #182348 0%, var(--bg) 65%);
+    background: var(--bg);
     color: var(--text);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     min-height: 100vh;
     padding-bottom: 60px;
     -webkit-tap-highlight-color: transparent;
   }
+
   header {
-    background: rgba(14, 20, 39, 0.88);
+    background: var(--bg-card);
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--line);
-    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: sticky;
     top: 0;
     z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
+
   .brand { display: flex; align-items: center; gap: 10px; }
   .brand-icon {
-    width: 34px; height: 34px; border-radius: 8px;
+    width: 36px; height: 36px; border-radius: 10px;
     background: linear-gradient(135deg, #10b981, #059669);
     display: flex; align-items: center; justify-content: center;
     font-size: 18px; box-shadow: 0 0 12px rgba(16,185,129,0.35);
   }
-  header h1 { font-size: 15px; font-weight: 700; }
-  header .sub { font-size: 11px; color: var(--muted); }
-  
+  header h1 { font-size: 15px; font-weight: 800; color: var(--text); }
+  header .sub { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
   .header-actions { display: flex; align-items: center; gap: 8px; }
   .status-pill {
-    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-full);
     background: rgba(16,185,129,0.15); border: 1px solid var(--ok); color: var(--ok);
     display: flex; align-items: center; gap: 6px;
-    transition: all 0.3s;
   }
   .status-pill.offline {
     background: rgba(245,158,11,0.15); border-color: var(--warn); color: var(--warn);
   }
-  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; animation: pulse 2s infinite; }
-  @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
 
-  main { max-width: 620px; margin: 20px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
+  main {
+    max-width: 640px;
+    margin: 16px auto;
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 
   .offline-nav-banner {
-    background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35);
-    border-radius: 12px; padding: 10px 14px; font-size: 12px; color: #fde68a;
-    display: none; align-items: center; gap: 10px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #fde68a;
+    display: none;
+    align-items: center;
+    gap: 10px;
   }
 
   .card {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
     padding: 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
+
   .card-title {
-    font-size: 12px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px;
-    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   /* Voice Assistant HUD Banner */
   .voice-bar {
     background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(16,185,129,0.15));
     border: 1.5px solid rgba(59,130,246,0.4);
-    border-radius: 14px; padding: 12px 16px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    margin-bottom: 14px; box-shadow: 0 4px 16px rgba(59,130,246,0.15);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
   .voice-meta { display: flex; align-items: center; gap: 10px; }
   .voice-icon {
-    width: 32px; height: 32px; border-radius: 50%;
+    width: 34px; height: 34px; border-radius: 50%;
     background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center;
     font-size: 16px; box-shadow: 0 0 12px var(--accent-glow);
   }
   .voice-text { font-size: 13px; font-weight: 700; color: #fff; }
-  .voice-sub { font-size: 11px; color: var(--muted); }
-  
+  .voice-sub { font-size: 11px; color: var(--text-muted); }
+
   .equalizer { display: flex; align-items: center; gap: 3px; height: 16px; }
   .eq-bar { width: 3px; background: var(--accent); border-radius: 2px; height: 4px; transition: height 0.15s; }
   .equalizer.active .eq-bar:nth-child(1) { animation: eq 0.6s infinite ease-in-out; }
@@ -115,8 +145,8 @@
   @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 16px; background: var(--ok); } }
 
   .btn-voice-toggle {
-    background: var(--panel-input); border: 1px solid var(--line); color: var(--text);
-    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--bg-subtle); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; cursor: pointer;
     transition: all 0.2s;
   }
   .btn-voice-toggle.active { background: rgba(16,185,129,0.2); border-color: var(--ok); color: var(--ok); }
@@ -126,55 +156,55 @@
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;
   }
   .telem-box {
-    background: var(--panel-input); border: 1.5px solid var(--line);
-    border-radius: 12px; padding: 14px 10px; text-align: center;
+    background: var(--bg-input); border: 1.5px solid var(--border);
+    border-radius: var(--radius-md); padding: 14px 10px; text-align: center;
   }
   .telem-val { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 800; color: #fff; }
-  .telem-unit { font-size: 11px; font-weight: 600; color: var(--accent); margin-top: 2px; }
-  .telem-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; }
+  .telem-unit { font-size: 11px; font-weight: 700; color: #60a5fa; margin-top: 2px; }
+  .telem-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; font-weight: 600; }
 
   /* Dynamic Advice Banner */
   .advice-box {
-    border-radius: 14px; padding: 16px; margin-bottom: 14px;
-    border: 1.5px solid var(--line); background: var(--panel-input);
+    border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;
+    border: 1.5px solid var(--border); background: var(--bg-input);
     transition: all 0.3s; position: relative;
   }
   .advice-box.ok {
     border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.08);
   }
   .advice-box.divert {
-    border-color: var(--warn); background: rgba(245,158,11,0.12);
+    border-color: var(--warn); background: rgba(245,158,11,0.15);
     box-shadow: 0 0 24px rgba(245,158,11,0.25);
-    animation: flashWarn 2s infinite;
   }
-  .advice-box.blocked {
-    border-color: var(--bad); background: rgba(239,68,68,0.15);
-    box-shadow: 0 0 24px rgba(239,68,68,0.35);
-  }
-  @keyframes flashWarn { 0%, 100% { border-color: var(--warn); } 50% { border-color: #fbbf24; } }
-  
-  .advice-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .advice-title { font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .advice-desc { font-size: 13px; color: var(--text); line-height: 1.45; }
+  
   .btn-hear-alert {
     display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    padding: 7px 14px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; color: #fff; cursor: pointer;
   }
-  .btn-hear-alert:hover { background: rgba(255,255,255,0.2); }
+  .btn-hear-alert:hover { background: rgba(255,255,255,0.18); }
+
+  /* GPS Stream Box */
+  .gps-box {
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 14px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between;
+  }
 
   /* Controls */
   .row { display: flex; gap: 10px; }
   .form-group { margin-bottom: 12px; flex: 1; }
-  label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
   input, select {
-    width: 100%; background: var(--panel-input); color: var(--text); border: 1.5px solid var(--line);
-    border-radius: 10px; padding: 11px 12px; font-size: 14px; font-family: inherit;
+    width: 100%; background: var(--bg-input); color: var(--text); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; font-family: inherit;
   }
-  input:focus, select:focus { outline: none; border-color: var(--line-focus); }
+  input:focus, select:focus { outline: none; border-color: var(--border-focus); }
 
   /* Buttons */
   .btn-primary {
-    width: 100%; padding: 14px; border-radius: 12px; border: none;
+    width: 100%; padding: 14px; border-radius: var(--radius-md); border: none;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
     box-shadow: 0 6px 20px rgba(16,185,129,0.3); transition: all 0.2s;
@@ -183,26 +213,20 @@
   .btn-primary:hover { transform: translateY(-1px); }
   
   .btn-ghost {
-    background: transparent; color: var(--muted); border: 1px solid var(--line);
-    border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
     width: 100%; margin-top: 8px; transition: all 0.2s;
   }
   .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
 
   .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
   .chip {
-    background: var(--panel-input); border: 1px solid var(--line); border-radius: 999px;
-    padding: 6px 12px; font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.2s;
-    display: flex; align-items: center; gap: 6px; font-weight: 500;
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-full);
+    padding: 6px 12px; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px; font-weight: 600;
   }
   .chip:hover { border-color: var(--accent); color: var(--text); background: rgba(59,130,246,0.1); }
   .chip.active { border-color: var(--accent); color: #fff; background: rgba(59,130,246,0.2); }
-
-  /* GPS Stream Box */
-  .gps-box {
-    background: var(--panel-input); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 14px; font-size: 12px; color: var(--muted); display: flex; align-items: center; justify-content: space-between;
-  }
 </style>
 </head>
 <body>
@@ -211,8 +235,8 @@
   <div class="brand">
     <div class="brand-icon">🚛</div>
     <div>
-      <h1>NER Driver Voice Navigation</h1>
-      <div class="sub">Audio Hazard Warnings &amp; Dynamic Rerouting</div>
+      <h1>NER Driver Cockpit</h1>
+      <div class="sub">AI Voice Co-Pilot &middot; Hazard Warnings &middot; Dynamic Rerouting</div>
     </div>
   </div>
   <div class="header-actions">
@@ -227,7 +251,7 @@
   <!-- Offline Navigation Mode Banner -->
   <div class="offline-nav-banner" id="offlineNavBanner">
     <span>📡</span>
-    <span><b>Offline Hill Mode Active:</b> Navigation is running from cached corridor trajectory and local speech engine. Telemetry will sync when signal returns.</span>
+    <span><b>Offline Hill Mode Active:</b> Navigation is running from cached corridor trajectory and local speech synthesizer.</span>
   </div>
 
   <!-- Voice Assistant Status Bar -->
@@ -250,7 +274,7 @@
   </div>
 
   <!-- Live Disaster Bulletin Banner -->
-  <div style="margin-bottom:14px; padding:10px 14px; background:linear-gradient(90deg, #1e112a, #0f172a); border:1.5px solid rgba(245,158,11,0.4); border-radius:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+  <div style="padding:10px 14px; background:linear-gradient(90deg, #1e112a, #0f172a); border:1.5px solid rgba(245,158,11,0.4); border-radius:var(--radius-md); display:flex; justify-content:space-between; align-items:center; gap:10px;">
     <div>
       <div style="font-size:10px; font-weight:800; color:#fca5a5; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
         <span style="width:6px; height:6px; background:#ef4444; border-radius:50%; display:inline-block;"></span> LIVE DISASTER &amp; ROAD BULLETIN
@@ -264,7 +288,7 @@
     </button>
   </div>
 
-  <!-- Telemetry HUD -->
+  <!-- Telemetry Cockpit -->
   <div class="card">
     <div class="card-title">
       <span>Live Trip Telemetry</span>
@@ -311,7 +335,7 @@
 
     <div class="row" style="margin-top:12px;">
       <button type="button" class="btn-primary" style="flex:1;" id="btnStep" onclick="simulateNextStep()">
-        ⏩ Simulate GPS Step
+        ⏩ Next Checkpoint
       </button>
       <button type="button" class="btn-ghost" style="flex:1; margin:0; border-color:var(--warn); color:var(--warn);" onclick="simulateHazard()">
         ⚠️ Trigger Landslide Warning
@@ -321,7 +345,7 @@
 
   <!-- Consignment Mission Selector -->
   <div class="card">
-    <div class="card-title">Quick Demo Consignments (Click to Load)</div>
+    <div class="card-title">Demo Missions (Click to Load Trajectory)</div>
     <div class="chips">
       <div class="chip active" onclick="loadMission('MED-2026-0842', 'medicine', 'Guwahati Central Depot', 'Shillong Civil Hospital', 25.5788, 91.8933, 'AS-01-AX-9921')">
         🚑 Meds: Guwahati → Shillong
@@ -373,7 +397,7 @@
     </div>
 
     <button type="button" class="btn-primary" id="btnStart" onclick="startTracking()">
-      🚀 Start Live Consignment Stream
+      🚀 Start Live Navigation Stream
     </button>
   </div>
 </main>
@@ -381,7 +405,6 @@
 <script src="/static/vendor/leaflet.js"></script>
 <script src="/static/idb.js?v=4.0"></script>
 <script>
-  // Register Service Worker for offline app shell
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(e => console.log('[Driver PWA] SW notice:', e));
   }
@@ -419,7 +442,6 @@
     }
   ];
 
-  // ---------------------------------------------------- Network Status Sync ---- //
   function updateNetworkStatus() {
     const pill = document.getElementById('tripPill');
     const text = document.getElementById('tripPillText');
@@ -440,7 +462,6 @@
   window.addEventListener('offline', updateNetworkStatus);
   document.addEventListener('DOMContentLoaded', updateNetworkStatus);
 
-  // ---------------------------------------------------- Voice Assistant Engine ---- //
   function playAudioTone(freq = 600, duration = 0.15) {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -510,7 +531,6 @@
     }
   }
 
-  // ---------------------------------------------------- Mission Simulation & Caching ---- //
   async function loadMission(id, cargo, orig, dest, lat, lon, veh) {
     document.getElementById('cid').value = id;
     document.getElementById('cargo').value = cargo;
@@ -519,7 +539,6 @@
     document.getElementById('veh').value = veh;
     stepIndex = 0;
 
-    // Cache mission trajectory to IndexedDB
     if (window.nerDB) {
       await window.nerDB.saveRoute(id, {
         id, cargo, orig, dest, veh, trajectory: demoTrajectory
@@ -546,7 +565,7 @@
 
     box.className = "advice-box divert";
     title.innerHTML = "⚠️ DIVERT ADVICE: Landslide Detected Ahead";
-    desc.innerHTML = "Landslide verified at km 48 on NH-6. <b>Take SH-14 Mawlyngkhung Bypass</b>. Alternate route avoids 2.5 hr roadblock and saves <b>48 min</b>.";
+    desc.innerHTML = "Landslide verified at km 48 on NH-6. <b>Take SH-14 Mawlyngkhung Bypass</b>. Saves <b>48 min</b> road blockage.";
     riskVal.textContent = "78%";
     riskVal.style.color = "var(--bad)";
 
@@ -580,7 +599,7 @@
   }
 
   async function pingBackend(s) {
-    if (!navigator.onLine) return; // Skip online ping in zero-signal zone
+    if (!navigator.onLine) return;
     try {
       await fetch('/api/shipments/ping', {
         method: 'POST',
@@ -633,6 +652,5 @@
     setInterval(loadDriverNews, 30000);
   });
 </script>
-
 </body>
 </html>

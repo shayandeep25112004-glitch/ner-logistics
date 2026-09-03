@@ -3,179 +3,320 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NER Logistics &amp; Accessibility Intelligence Platform — Command Centre</title>
+<title>NER Logistics &amp; Accessibility Intelligence Platform</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/vendor/leaflet.css" />
 <style>
   :root {
-    --bg: #070b16;
-    --panel: #0f172a;
-    --panel-2: #16203a;
-    --panel-card: #131c35;
-    --line: #212d4d;
-    --line-focus: #3b82f6;
-    --text: #f1f5f9;
-    --muted: #8b9cb8;
-    --accent: #3b82f6;
-    --accent-glow: rgba(59, 130, 246, 0.35);
-    --open: #10b981;
-    --risk: #f59e0b;
-    --blocked: #ef4444;
-    --critical: #dc2626;
+    --bg: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f1f5f9;
+    --bg-subtle: #f1f5f9;
+    --bg-input: #ffffff;
+    --border: #e2e8f0;
+    --border-focus: #2563eb;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-dim: #64748b;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-subtle: #eff6ff;
+    --accent-glow: rgba(37, 99, 235, 0.15);
+    --open: #059669;
+    --open-subtle: #ecfdf5;
+    --risk: #d97706;
+    --risk-subtle: #fffbeb;
+    --blocked: #dc2626;
+    --blocked-subtle: #fef2f2;
+    --critical: #b91c1c;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.1);
+    --hud-bg: rgba(255, 255, 255, 0.98);
+    --hud-border: #cbd5e1;
   }
+
+  [data-theme="dark"] {
+    --bg: #090d1a;
+    --bg-card: #0f172a;
+    --bg-card-hover: #141f38;
+    --bg-subtle: #162038;
+    --bg-input: #0b1122;
+    --border: #1e293b;
+    --border-focus: #3b82f6;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-subtle: rgba(59, 130, 246, 0.12);
+    --accent-glow: rgba(59, 130, 246, 0.3);
+    --open: #10b981;
+    --open-subtle: rgba(16, 185, 129, 0.12);
+    --risk: #f59e0b;
+    --risk-subtle: rgba(245, 158, 11, 0.12);
+    --blocked: #ef4444;
+    --blocked-subtle: rgba(239, 68, 68, 0.15);
+    --critical: #dc2626;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 14px rgba(0,0,0,0.35);
+    --shadow-lg: 0 10px 30px rgba(0,0,0,0.5);
+    --hud-bg: rgba(15, 23, 42, 0.96);
+    --hud-border: rgba(59, 130, 246, 0.5);
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: var(--bg); color: var(--text);
+    background: var(--bg);
+    color: var(--text);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
-  
-  /* Glassmorphic Header */
+
+  /* ------------------------------------------------ Header ---------------- */
   header {
-    display: flex; align-items: center; gap: 16px; padding: 12px 22px;
-    background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 24px;
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: var(--shadow-sm);
   }
+
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: inherit;
+  }
+
   .brand-logo {
-    width: 36px; height: 36px; border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
     background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; box-shadow: 0 0 14px var(--accent-glow); flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 2px 10px var(--accent-glow);
+    flex-shrink: 0;
+    color: #fff;
   }
-  header h1 { font-size: 16px; font-weight: 800; letter-spacing: -0.2px; }
-  header .sub { color: var(--muted); font-size: 11px; margin-top: 1px; font-weight: 500; }
-  header .spacer { flex: 1; }
 
-  .pill {
-    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
-    border-radius: 999px; padding: 5px 12px; font-size: 11px; font-weight: 600;
-    display: flex; align-items: center; gap: 6px;
+  .brand-title {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--open); box-shadow: 0 0 8px var(--open); }
 
-  button, select {
-    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
-    font-family: inherit; transition: all 0.2s;
+  .brand-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    letter-spacing: 0.5px;
   }
-  button:hover { border-color: var(--accent); color: #fff; background: rgba(59,130,246,0.15); }
+
+  .brand-sub {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 1px;
+  }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-pill {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: var(--radius-full);
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .header-pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--open);
+    box-shadow: 0 0 8px var(--open);
+  }
+
+  /* Buttons & Dropdowns */
+  button, select, input {
+    font-family: inherit;
+  }
+
+  button {
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-subtle);
+  }
+
+  button:focus-visible, select:focus-visible, input:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 1px;
+  }
+
   button.primary {
-    background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff;
-    border-color: #3b82f6; box-shadow: 0 4px 14px var(--accent-glow);
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    border-color: #2563eb;
+    box-shadow: 0 3px 12px var(--accent-glow);
   }
-  button.primary:hover { box-shadow: 0 6px 20px var(--accent-glow); transform: translateY(-1px); }
 
-  /* Navigation Bar */
+  button.primary:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    color: #fff;
+    box-shadow: 0 4px 16px var(--accent-glow);
+    transform: translateY(-1px);
+  }
+
+  button.primary:active {
+    transform: translateY(0);
+  }
+
+  select, input[type="text"] {
+    background: var(--bg-input);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  select:hover, select:focus, input[type="text"]:focus {
+    border-color: var(--border-focus);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  /* ------------------------------------------------ Navigation Tabs -------- */
+  .nav-tabs-wrapper {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
   .nav-tabs {
-    display: flex; gap: 8px; background: #0b1122; padding: 8px 22px;
-    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 6px;
+    padding: 8px 0;
   }
+
   .nav-tab {
-    background: transparent; border: 1.5px solid transparent; color: var(--muted);
-    padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
-    cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: none;
   }
-  .nav-tab:hover { color: var(--text); background: rgba(59,130,246,0.08); }
+
+  .nav-tab:hover {
+    color: var(--text);
+    background: var(--bg-subtle);
+  }
+
   .nav-tab.active {
-    background: var(--panel-2); color: var(--accent); border-color: var(--accent);
-    box-shadow: 0 0 16px rgba(59,130,246,0.25);
-  }
-  .tab-content { display: none; }
-  .tab-content.active { display: block; }
-  .frame-container { padding: 18px; max-width: 1400px; margin: 0 auto; height: calc(100vh - 140px); }
-  .app-frame { width: 100%; height: 100%; min-height: 700px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
-
-  /* KPI Grid */
-  .kpis {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 12px; padding: 16px 22px;
-  }
-  .kpi {
-    background: var(--panel-card); border: 1px solid var(--line); border-radius: 14px;
-    padding: 14px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transition: transform 0.2s;
-  }
-  .kpi:hover { transform: translateY(-2px); border-color: rgba(59,130,246,0.3); }
-  .kpi .v { font-size: 24px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: #fff; }
-  .kpi .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; margin-top: 4px; }
-
-  /* Main Dashboard Grid */
-  .grid { display: grid; grid-template-columns: 1fr 420px; gap: 16px; padding: 0 22px 24px; }
-  @media (max-width: 1180px) { .grid { grid-template-columns: 1fr; } }
-  
-  .card {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-  }
-  .card h2 {
-    margin: 0; padding: 12px 18px; font-size: 13px; text-transform: uppercase;
-    letter-spacing: 0.7px; color: var(--muted); border-bottom: 1px solid var(--line);
-    display: flex; align-items: center; gap: 10px; font-weight: 700; background: rgba(22,32,58,0.4);
-  }
-  .card h2 .spacer { flex: 1; }
-  
-  #map { height: 580px; background: #080c18; }
-  .side { display: flex; flex-direction: column; gap: 14px; }
-  .scroll { max-height: 280px; overflow: auto; }
-  
-  /* Tables */
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); }
-  th { color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0,0,0,0.15); }
-  
-  /* Badges & Indicators */
-  .badge { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-  .b-open { background: rgba(16,185,129,0.15); color: var(--open); border: 1px solid rgba(16,185,129,0.3); }
-  .b-risk { background: rgba(245,158,11,0.15); color: var(--risk); border: 1px solid rgba(245,158,11,0.3); }
-  .b-blocked { background: rgba(239,68,68,0.18); color: var(--blocked); border: 1px solid rgba(239,68,68,0.4); }
-  .b-critical { background: rgba(220,38,38,0.3); color: #ff8a9b; border: 1px solid var(--critical); }
-  
-  .bar { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
-  .bar > i { display: block; height: 100%; }
-  
-  .legend { display: flex; gap: 14px; padding: 10px 18px; font-size: 12px; color: var(--muted); flex-wrap: wrap; background: rgba(0,0,0,0.2); }
-  .legend span { display: flex; align-items: center; }
-  .legend i { display: inline-block; width: 12px; height: 4px; border-radius: 2px; margin-right: 6px; }
-  
-  .alert { padding: 12px 18px; border-bottom: 1px solid var(--line); transition: background 0.2s; }
-  .alert:hover { background: rgba(59,130,246,0.05); }
-  .alert .t { font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-  .alert .m { color: var(--muted); font-size: 12px; line-height: 1.4; }
-  .alert .ts { color: var(--muted); font-size: 11px; margin-top: 4px; }
-  
-  .hint { color: var(--muted); font-size: 12px; padding: 10px 18px; line-height: 1.45; }
-  .route { padding: 12px 16px; border-bottom: 1px solid var(--line); }
-  .route .hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
-  #status { font-size: 12px; color: var(--muted); padding: 0 22px 12px; }
-  
-  /* Quick Corridor Chips */
-  .corridor-chip {
-    background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
-    padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;
-    cursor: pointer; transition: all 0.2s;
-  }
-  .corridor-chip:hover {
-    background: rgba(59,130,246,0.2); border-color: var(--accent); color: #fff;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 700;
   }
 
-  /* Live Disaster News Ticker Bar */
+  .nav-tab-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    background: var(--accent-subtle);
+    color: var(--accent);
+    border: 1px solid var(--border);
+  }
+
+  /* ------------------------------------------------ News Ticker ------------ */
   .news-ticker-bar {
     display: flex;
     align-items: center;
-    background: linear-gradient(90deg, #1e112a 0%, #0f172a 40%, #0b1122 100%);
-    border-bottom: 1.5px solid rgba(245, 158, 11, 0.35);
-    padding: 7px 22px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 24px;
     font-size: 12px;
     gap: 12px;
     overflow: hidden;
   }
+
   .ticker-label {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid #ef4444;
-    color: #fca5a5;
-    padding: 3px 9px;
+    background: var(--blocked-subtle);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    color: var(--blocked);
+    padding: 2px 8px;
     border-radius: 6px;
     font-size: 10px;
     font-weight: 800;
@@ -185,16 +326,28 @@
     gap: 6px;
     flex-shrink: 0;
   }
+
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--blocked);
+    box-shadow: 0 0 8px var(--blocked);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
   .ticker-track {
     flex: 1;
     overflow: hidden;
     white-space: nowrap;
   }
+
   .ticker-content {
     display: inline-block;
-    color: #fde68a;
+    color: var(--text);
     font-weight: 500;
-    animation: marqueeNews 35s linear infinite;
+    animation: marqueeNews 40s linear infinite;
     cursor: pointer;
   }
   .ticker-content:hover {
@@ -204,10 +357,11 @@
     0% { transform: translateX(100%); }
     100% { transform: translateX(-100%); }
   }
+
   .btn-ticker-voice {
-    background: rgba(59, 130, 246, 0.2);
+    background: var(--accent-subtle);
     border: 1px solid var(--accent);
-    color: #93c5fd;
+    color: var(--accent);
     padding: 4px 10px;
     border-radius: 6px;
     font-size: 11px;
@@ -216,64 +370,263 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 5px;
-    transition: all 0.2s;
+    gap: 6px;
+    transition: all 0.2s ease;
+    box-shadow: none;
   }
   .btn-ticker-voice:hover {
     background: var(--accent);
     color: #fff;
-    box-shadow: 0 0 12px var(--accent-glow);
+    box-shadow: 0 2px 8px var(--accent-glow);
   }
 
-  /* Audio Equalizer for Hands-Free Driver Voice */
+  /* Equalizer */
   .voice-eq-waves {
     display: inline-flex;
     align-items: center;
     gap: 2px;
-    height: 14px;
-    margin-left: 6px;
+    height: 12px;
   }
   .voice-eq-bar {
-    width: 2.5px;
-    background: var(--open);
+    width: 2px;
+    background: var(--accent);
     border-radius: 1px;
     height: 3px;
-    transition: height 0.1s;
   }
   .voice-eq-waves.speaking .voice-eq-bar:nth-child(1) { animation: eqWave 0.5s infinite ease-in-out; }
   .voice-eq-waves.speaking .voice-eq-bar:nth-child(2) { animation: eqWave 0.7s infinite ease-in-out 0.1s; }
   .voice-eq-waves.speaking .voice-eq-bar:nth-child(3) { animation: eqWave 0.4s infinite ease-in-out 0.2s; }
   .voice-eq-waves.speaking .voice-eq-bar:nth-child(4) { animation: eqWave 0.6s infinite ease-in-out 0.15s; }
-  @keyframes eqWave { 0%, 100% { height: 3px; } 50% { height: 14px; background: #38bdf8; } }
+  @keyframes eqWave { 0%, 100% { height: 3px; } 50% { height: 12px; background: var(--open); } }
 
-  /* Map Container & Floating Live Driver Telemetry HUD */
+  /* ------------------------------------------------ 3-Step Guided Bar ------ */
+  .hero-guide-bar {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .quick-corridor-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .quick-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .corridor-chip {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .corridor-chip:hover {
+    background: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .guide-step-pills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .step-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-subtle);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  /* ------------------------------------------------ KPI Summary Bar -------- */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    padding: 16px 24px;
+  }
+
+  .kpi {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+  }
+
+  .kpi:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+  }
+
+  .kpi .v {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+  }
+
+  .kpi .l {
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-top: 3px;
+  }
+
+  /* ------------------------------------------------ Main Layout Grid ------- */
+  .main-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 440px;
+    gap: 16px;
+    padding: 0 24px 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 1180px) {
+    .main-dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card-head {
+    margin: 0;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--bg-subtle);
+  }
+
+  /* ------------------------------------------------ Map Canvas ------------- */
   .map-wrapper {
     position: relative;
     width: 100%;
-    height: 600px;
+    height: 620px;
     overflow: hidden;
+    background: var(--bg-subtle);
   }
-  #map { height: 100%; width: 100%; background: #080c18; }
 
+  #map {
+    height: 100%;
+    width: 100%;
+  }
+
+  /* Map Legend */
+  .map-legend {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 18px;
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+  }
+
+  .map-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .map-legend-line {
+    display: inline-block;
+    width: 14px;
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  .map-hint-bar {
+    padding: 8px 18px;
+    background: var(--accent-subtle);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ------------------------------------------------ Floating Live Driver HUD */
   .driver-live-hud {
     position: absolute;
     bottom: 20px;
     left: 20px;
     right: 20px;
-    max-width: 560px;
-    background: rgba(15, 23, 42, 0.94);
+    max-width: 580px;
+    background: var(--hud-bg);
     backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1.5px solid rgba(59, 130, 246, 0.5);
-    border-radius: 18px;
+    border: 1.5px solid var(--hud-border);
+    border-radius: var(--radius-lg);
     padding: 16px 18px;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(59, 130, 246, 0.2);
+    box-shadow: var(--shadow-lg);
     z-index: 1000;
     transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     transform: translateY(0);
     opacity: 1;
     pointer-events: auto;
   }
+
   .driver-live-hud.hidden {
     transform: translateY(40px);
     opacity: 0;
@@ -287,57 +640,59 @@
     gap: 12px;
     margin-bottom: 12px;
   }
+
   .hud-driver-profile {
     display: flex;
     align-items: center;
     gap: 10px;
   }
+
   .driver-avatar-circle {
     width: 38px;
     height: 38px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #10b981, #059669);
+    border-radius: 10px;
+    background: linear-gradient(135deg, #059669, #047857);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+    font-size: 18px;
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.3);
     flex-shrink: 0;
   }
+
   .driver-name-text {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text);
     line-height: 1.2;
   }
   .driver-sub-text {
     font-size: 11px;
-    color: var(--muted);
+    color: var(--text-muted);
     margin-top: 2px;
   }
 
   .hud-status-badge {
-    background: rgba(16, 185, 129, 0.15);
+    background: var(--open-subtle);
     border: 1px solid var(--open);
     color: var(--open);
-    padding: 4px 10px;
-    border-radius: 999px;
+    padding: 3px 9px;
+    border-radius: var(--radius-full);
     font-size: 11px;
     font-weight: 700;
     display: flex;
     align-items: center;
     gap: 6px;
-    letter-spacing: 0.3px;
   }
   .hud-status-badge.diverted {
-    background: rgba(245, 158, 11, 0.15);
+    background: var(--risk-subtle);
     border-color: var(--risk);
     color: var(--risk);
   }
   .hud-status-badge.delivered {
-    background: rgba(59, 130, 246, 0.2);
+    background: var(--accent-subtle);
     border-color: var(--accent);
-    color: #93c5fd;
+    color: var(--accent);
   }
 
   .hud-progress-wrap {
@@ -348,24 +703,23 @@
     justify-content: space-between;
     font-size: 11px;
     font-weight: 600;
-    color: var(--muted);
+    color: var(--text-muted);
     margin-bottom: 5px;
   }
   .hud-progress-track {
-    height: 7px;
-    background: var(--panel-2);
-    border-radius: 999px;
+    height: 6px;
+    background: var(--bg-subtle);
+    border-radius: var(--radius-full);
     overflow: hidden;
     position: relative;
-    border: 1px solid var(--line);
+    border: 1px solid var(--border);
   }
   .hud-progress-fill {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #3b82f6, #10b981);
-    border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #059669);
+    border-radius: var(--radius-full);
     transition: width 0.3s ease;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
   }
 
   .hud-stats-grid {
@@ -375,9 +729,9 @@
     margin-bottom: 12px;
   }
   .hud-stat-box {
-    background: rgba(22, 32, 58, 0.6);
-    border: 1px solid var(--line);
-    border-radius: 10px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     padding: 8px 10px;
     text-align: center;
   }
@@ -385,11 +739,11 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 16px;
     font-weight: 800;
-    color: #fff;
+    color: var(--text);
   }
   .hud-stat-lbl {
     font-size: 10px;
-    color: var(--muted);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-top: 2px;
@@ -397,33 +751,30 @@
   }
 
   .hud-checkpoint-box {
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px dashed var(--line);
-    border-radius: 10px;
-    padding: 8px 12px;
+    background: var(--bg-subtle);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
     font-size: 11px;
-    color: #cbd5e1;
+    color: var(--text);
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
-  .hud-checkpoint-box b { color: #38bdf8; }
 
   .hud-alert-banner {
-    background: rgba(245, 158, 11, 0.15);
-    border: 1px solid rgba(245, 158, 11, 0.4);
-    border-radius: 10px;
+    background: var(--risk-subtle);
+    border: 1px solid rgba(217, 119, 6, 0.4);
+    border-radius: var(--radius-sm);
     padding: 8px 12px;
     font-size: 12px;
-    color: #fde68a;
+    color: var(--risk);
     display: none;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
-    animation: flashAlert 2s infinite;
+    margin-bottom: 10px;
   }
-  @keyframes flashAlert { 0%, 100% { border-color: rgba(245, 158, 11, 0.4); } 50% { border-color: #f59e0b; } }
 
   .hud-actions {
     display: flex;
@@ -431,38 +782,325 @@
     flex-wrap: wrap;
   }
   .hud-btn {
-    background: var(--panel-2);
-    border: 1px solid var(--line);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     color: var(--text);
-    padding: 6px 11px;
-    border-radius: 8px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 5px;
-    transition: all 0.2s;
+    gap: 4px;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
   }
   .hud-btn:hover {
-    background: rgba(59, 130, 246, 0.2);
+    background: var(--accent-subtle);
     border-color: var(--accent);
-    color: #fff;
+    color: var(--accent);
   }
   .hud-btn.active {
-    background: rgba(59, 130, 246, 0.3);
+    background: var(--accent-subtle);
     border-color: var(--accent);
-    color: #60a5fa;
+    color: var(--accent);
   }
   .hud-btn.danger {
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #fca5a5;
+    border-color: rgba(220, 38, 38, 0.4);
+    color: var(--blocked);
   }
   .hud-btn.danger:hover {
-    background: rgba(239, 68, 68, 0.2);
+    background: var(--blocked-subtle);
   }
 
-  /* Custom Vehicle Marker Styling */
+  /* ------------------------------------------------ Tabbed Right Panel ----- */
+  .side-panel-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .side-tabs-header {
+    display: flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    gap: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .side-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    box-shadow: none;
+  }
+
+  .side-tab-btn:hover {
+    color: var(--text);
+    background: var(--bg-subtle);
+  }
+
+  .side-tab-btn.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 8px var(--accent-glow);
+  }
+
+  .side-tab-pane {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .side-tab-pane.active {
+    display: flex;
+  }
+
+  /* Route Cards */
+  .route-card {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--bg-card);
+  }
+  .route-card:hover {
+    background: var(--bg-subtle);
+  }
+  .route-card.selected {
+    background: var(--accent-subtle);
+    border-left: 4px solid var(--accent);
+  }
+
+  .route-badge-sel {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    background: var(--accent);
+    color: #fff;
+    text-transform: uppercase;
+  }
+
+  /* Badges & Tables */
+  .badge {
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-transform: uppercase;
+  }
+  .b-open { background: var(--open-subtle); color: var(--open); border: 1px solid rgba(5, 150, 105, 0.3); }
+  .b-risk { background: var(--risk-subtle); color: var(--risk); border: 1px solid rgba(217, 119, 6, 0.3); }
+  .b-blocked { background: var(--blocked-subtle); color: var(--blocked); border: 1px solid rgba(220, 38, 38, 0.3); }
+  .b-critical { background: var(--blocked-subtle); color: var(--critical); border: 1px solid var(--critical); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--bg-subtle);
+  }
+  tr:hover td {
+    background: var(--bg-subtle);
+  }
+
+  .scroll-box {
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .scroll-box::-webkit-scrollbar { width: 6px; }
+  .scroll-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-subtle);
+    overflow: hidden;
+  }
+  .bar > i {
+    display: block;
+    height: 100%;
+  }
+
+  .hint {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 12px 16px;
+    line-height: 1.5;
+  }
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ------------------------------------------------ Road Inspector Card ---- */
+  .road-inspector-card {
+    background: var(--bg-card);
+    border: 1.5px solid var(--accent);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    margin: 10px 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .inspector-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    font-size: 11px;
+    margin: 10px 0;
+  }
+  .inspector-cell {
+    background: var(--bg-subtle);
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .inspector-cell span {
+    color: var(--text-muted);
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .inspector-cell b {
+    color: var(--text);
+  }
+
+  /* ------------------------------------------------ Dispatch Modal --------- */
+  .modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+  }
+  .modal-backdrop.active {
+    display: flex;
+  }
+  .modal-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.96) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal-head {
+    padding: 16px 20px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-head h3 {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .modal-body {
+    padding: 18px 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .modal-foot {
+    padding: 14px 20px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .form-col {
+    flex: 1;
+  }
+  .form-col label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    letter-spacing: 0.4px;
+  }
+  .form-col input, .form-col select {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+  .form-col input:focus, .form-col select:focus {
+    border-color: var(--border-focus);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+
+  /* ------------------------------------------------ Sub-App iFrames -------- */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .frame-container {
+    padding: 18px;
+    max-width: 1400px;
+    margin: 0 auto;
+    height: calc(100vh - 140px);
+  }
+  .app-frame {
+    width: 100%;
+    height: 100%;
+    min-height: 700px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+  }
+
+  /* Vehicle Marker Animation */
   .custom-driver-vehicle-marker {
     background: transparent;
     border: none;
@@ -493,7 +1131,7 @@
     border-radius: 50%;
     background: linear-gradient(135deg, #10b981, #047857);
     border: 2px solid #ffffff;
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.7);
+    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -502,164 +1140,84 @@
     z-index: 2;
   }
 
-  /* Road Selection & Route Cards */
-  .route-card {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--line);
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
+  #status {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 0 24px 12px;
   }
-  .route-card:hover {
-    background: rgba(59, 130, 246, 0.08);
-  }
-  .route-card.selected {
-    background: rgba(59, 130, 246, 0.12);
-    border-left: 3px solid var(--accent);
-  }
-  .route-card .route-badge-sel {
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(59, 130, 246, 0.2);
-    border: 1px solid var(--accent);
-    color: #93c5fd;
-    text-transform: uppercase;
-  }
-
-  /* Road Corridor Intelligence Inspector Card */
-  .road-inspector-card {
-    background: var(--panel-card);
-    border: 1px solid rgba(59, 130, 246, 0.35);
-    border-radius: 12px;
-    padding: 14px;
-    margin: 10px 14px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  }
-  .inspector-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-  .inspector-title {
-    font-size: 13px;
-    font-weight: 800;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .inspector-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    font-size: 11px;
-    margin-top: 8px;
-  }
-  .inspector-cell {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--line);
-  }
-  .inspector-cell span { color: var(--muted); display: block; font-size: 10px; text-transform: uppercase; }
-  .inspector-cell b { color: var(--text); }
-
-  /* Modal Backdrop for Consignment Dispatch Confirmation */
-  .modal-backdrop {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(4, 7, 18, 0.82);
-    backdrop-filter: blur(12px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    padding: 16px;
-  }
-  .modal-backdrop.active {
-    display: flex;
-  }
-  .modal-box {
-    background: var(--panel);
-    border: 1.5px solid rgba(59, 130, 246, 0.4);
-    border-radius: 20px;
-    width: 100%;
-    max-width: 520px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 30px rgba(59,130,246,0.2);
-    overflow: hidden;
-    animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  @keyframes modalIn {
-    from { opacity: 0; transform: scale(0.95) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-  }
-  .modal-head {
-    padding: 16px 20px;
-    background: rgba(22, 32, 58, 0.7);
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .modal-head h3 { font-size: 15px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
-  .modal-body { padding: 18px 20px; max-height: 70vh; overflow-y: auto; }
-  .modal-foot {
-    padding: 14px 20px;
-    background: rgba(11, 17, 34, 0.9);
-    border-top: 1px solid var(--line);
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-  }
-  .form-row { display: flex; gap: 10px; margin-bottom: 12px; }
-  .form-col { flex: 1; }
-  .form-col label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
-  .form-col input, .form-col select { width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: #fff; border-radius: 8px; padding: 9px 10px; font-size: 13px; }
-  .form-col input:focus, .form-col select:focus { border-color: var(--accent); outline: none; }
 </style>
 </head>
 <body>
 
+<!-- Global Header -->
 <header>
-  <div style="display:flex; align-items:center; gap:12px;">
+  <a href="/" class="brand-group">
     <div class="brand-logo">🌐</div>
     <div>
-      <h1>NER Logistics &amp; Accessibility Intelligence</h1>
-      <div class="sub">Arunachal Pradesh &middot; Assam &middot; Manipur &middot; Meghalaya &middot; Mizoram &middot; Nagaland &middot; Sikkim &middot; Tripura</div>
+      <div class="brand-title">
+        NER Logistics Intelligence
+        <span class="brand-tag">North East India</span>
+      </div>
+      <div class="brand-sub">Real-Time Road Safety &middot; Disruption Prediction &middot; Risk-Aware Routing</div>
     </div>
+  </a>
+
+  <div class="header-controls">
+    <button type="button" id="btnThemeToggle" title="Switch between Light and Dark mode" style="padding: 5px 12px; font-size: 11px; font-weight: 700; border-radius: var(--radius-full);">
+      ☀️ Light
+    </button>
+
+    <select id="selQuickRoad" title="Quickly select and inspect a major arterial highway">
+      <option value="">🛣️ Select Arterial Highway...</option>
+      <option value="NH-6">NH-6 (Guwahati ↔ Shillong)</option>
+      <option value="NH-306">NH-306 (Silchar ↔ Aizawl)</option>
+      <option value="NH-29">NH-29 (Dimapur ↔ Kohima)</option>
+      <option value="NH-27">NH-27 (Assam East-West Corridor)</option>
+      <option value="NH-10">NH-10 (Siliguri ↔ Gangtok)</option>
+      <option value="NH-715">NH-715 (Jorhat ↔ Itanagar)</option>
+      <option value="NH-208">NH-208 (Tripura Lifeline)</option>
+    </select>
+
+    <div class="header-pill" id="pillNet" title="Active routable road network segments">
+      <span class="header-pill-dot"></span>
+      <span>160k Segments Online</span>
+    </div>
+    
+    <div class="header-pill" id="pillModel" title="AI terrain and rainfall risk model reliability">
+      <span>AI Risk Engine Active</span>
+    </div>
+    
+    <div class="header-pill mono" id="pillTime">&ndash;</div>
+
+    <button class="primary" id="btnRefresh" title="Re-score real-time weather and terrain disruption risks">
+      ⚡ Refresh Live Risk
+    </button>
   </div>
-  <div class="spacer"></div>
-  <select id="selQuickRoad" style="padding:6px 12px; font-size:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; color:var(--text);" title="Quick select & inspect major arterial road">
-    <option value="">🛣️ Select Arterial Corridor...</option>
-    <option value="NH-6">NH-6 (Guwahati ↔ Shillong)</option>
-    <option value="NH-306">NH-306 (Silchar ↔ Aizawl)</option>
-    <option value="NH-29">NH-29 (Dimapur ↔ Kohima)</option>
-    <option value="NH-27">NH-27 (Assam East-West Corridor)</option>
-    <option value="NH-10">NH-10 (Siliguri ↔ Gangtok)</option>
-    <option value="NH-715">NH-715 (Jorhat ↔ Itanagar)</option>
-    <option value="NH-208">NH-208 (Tripura Lifeline)</option>
-  </select>
-  <span class="pill" id="pillNet"><span class="pill-dot"></span>network 160k segments</span>
-  <span class="pill" id="pillModel">model AUC 0.89</span>
-  <span class="pill" id="pillTime">&ndash;</span>
-  <button class="primary" id="btnRefresh">⚡ Refresh Live Risk</button>
 </header>
 
-<div class="nav-tabs">
-  <button class="nav-tab active" data-tab="tab-command">🗺️ Command Centre</button>
-  <button class="nav-tab" data-tab="tab-field">📱 Field Reporter</button>
-  <button class="nav-tab" data-tab="tab-driver">🚛 Driver Voice Navigation</button>
-  <a href="/docs" target="_blank" class="nav-tab" style="text-decoration:none;margin-left:auto;">📖 API Docs ↗</a>
+<!-- App Navigation Tabs -->
+<div class="nav-tabs-wrapper">
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="tab-command">
+      🗺️ Command Centre <span class="nav-tab-badge">Main</span>
+    </button>
+    <button class="nav-tab" data-tab="tab-field">
+      📱 Field Reporter <span class="nav-tab-badge">Offline PWA</span>
+    </button>
+    <button class="nav-tab" data-tab="tab-driver">
+      🚛 Driver Voice Navigation <span class="nav-tab-badge">Co-Pilot</span>
+    </button>
+  </div>
+  <a href="/docs" target="_blank" class="nav-tab" style="text-decoration:none; font-size:12px;">
+    📖 Interactive API Docs ↗
+  </a>
 </div>
 
-<!-- Live Disaster News & Ground Advisory Ticker Bar -->
+<!-- Live Disaster News Ticker -->
 <div class="news-ticker-bar" id="newsTickerBar">
-  <div class="ticker-label"><span class="pulse-dot"></span> LIVE DISASTER NEWS</div>
+  <div class="ticker-label"><span class="pulse-dot"></span> LIVE DISASTER BULLETIN</div>
   <div class="ticker-track">
-    <div class="ticker-content" id="newsTickerContent" title="Click to open disaster news feed">
+    <div class="ticker-content" id="newsTickerContent" title="Click to view full emergency bulletins">
       🚨 Loading verified road hazard and weather bulletins from ASDMA, SDMA Meghalaya, BRO Swastik/Sewak, and IMD...
     </div>
   </div>
@@ -670,29 +1228,70 @@
 
 <!-- Tab 1: Command Centre -->
 <div id="tab-command" class="tab-content active">
+  
+  <!-- 3-Step Guided Workflow Banner -->
+  <div class="hero-guide-bar">
+    <div class="quick-corridor-group">
+      <span class="quick-label">⚡ 1-Click Popular Routes:</span>
+      <button type="button" class="corridor-chip" onclick="setQuickRoute(26.1820, 91.7480, 25.5788, 91.8933, 'Guwahati → Shillong')">
+        Guwahati → Shillong (NH-6)
+      </button>
+      <button type="button" class="corridor-chip" onclick="setQuickRoute(24.8333, 92.7789, 23.7271, 92.7176, 'Silchar → Aizawl')">
+        Silchar → Aizawl (NH-306)
+      </button>
+      <button type="button" class="corridor-chip" onclick="setQuickRoute(25.9064, 93.7273, 25.6701, 94.1077, 'Dimapur → Kohima')">
+        Dimapur → Kohima (NH-29)
+      </button>
+      <button type="button" class="corridor-chip" onclick="setQuickRoute(26.7509, 94.2037, 27.0844, 93.6053, 'Jorhat → Itanagar')">
+        Jorhat → Itanagar (NH-715)
+      </button>
+      <button type="button" class="corridor-chip" onclick="setQuickRoute(27.3389, 88.6065, 27.5089, 88.5289, 'Gangtok → Mangan')">
+        Gangtok → Mangan (NH-10)
+      </button>
+    </div>
+
+    <div class="guide-step-pills">
+      <div class="step-pill"><span class="step-num">1</span> Pick Route</div>
+      <span style="color:var(--text-dim)">→</span>
+      <div class="step-pill"><span class="step-num">2</span> Review Safety &amp; Alternates</div>
+      <span style="color:var(--text-dim)">→</span>
+      <div class="step-pill"><span class="step-num">3</span> Dispatch Consignment</div>
+    </div>
+  </div>
+
+  <!-- Real-Time Metrics KPI Bar -->
   <div class="kpis" id="kpis"></div>
 
-  <div class="grid">
+  <!-- Main Dashboard Grid -->
+  <div class="main-dashboard-grid">
+    
+    <!-- Left Column: Interactive GIS Map -->
     <div class="card">
-      <h2>
-        🗺️ Real-Time Accessibility GIS Map
-        <span class="spacer"></span>
-        <select id="selState" title="Filter map by state">
-          <option value="">All 8 States</option>
-          <option value="AS">Assam</option>
-          <option value="ML">Meghalaya</option>
-          <option value="AR">Arunachal Pradesh</option>
-          <option value="MN">Manipur</option>
-          <option value="MZ">Mizoram</option>
-          <option value="NL">Nagaland</option>
-          <option value="SK">Sikkim</option>
-          <option value="TR">Tripura</option>
-        </select>
-        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">Risk Filter
-          <input type="range" id="rngRisk" min="0" max="0.9" step="0.05" value="0" style="width:90px">
-        </label>
-        <button id="btnLayer" class="primary">📍 Route Mode: Active</button>
-      </h2>
+      <div class="card-head">
+        <span style="display:flex; align-items:center; gap:8px;">
+          🗺️ <b>Real-Time Accessibility GIS Map</b>
+        </span>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <select id="selState" title="Filter map by state">
+            <option value="">All 8 States</option>
+            <option value="AS">Assam</option>
+            <option value="ML">Meghalaya</option>
+            <option value="AR">Arunachal Pradesh</option>
+            <option value="MN">Manipur</option>
+            <option value="MZ">Mizoram</option>
+            <option value="NL">Nagaland</option>
+            <option value="SK">Sikkim</option>
+            <option value="TR">Tripura</option>
+          </select>
+          <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+            Risk Filter
+            <input type="range" id="rngRisk" min="0" max="0.9" step="0.05" value="0" style="width:80px">
+          </label>
+          <button id="btnLayer" class="primary" style="padding:5px 10px; font-size:12px;">
+            📍 Route Mode: Active
+          </button>
+        </div>
+      </div>
       
       <div class="map-wrapper">
         <div id="map"></div>
@@ -716,7 +1315,7 @@
           </div>
 
           <!-- Hands-Free Driver Voice Co-Pilot Bar -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:6px 10px; background:rgba(0,0,0,0.3); border-radius:10px; border:1px solid var(--line);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:6px 10px; background:rgba(0,0,0,0.35); border-radius:var(--radius-sm); border:1px solid var(--border);">
             <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#38bdf8;">
               <span>🎙️ Hands-Free Co-Pilot</span>
               <span class="voice-eq-waves" id="driverVoiceWaves"><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i><i class="voice-eq-bar"></i></span>
@@ -731,7 +1330,7 @@
                 🔊 Voice: ON
               </button>
               <button type="button" class="hud-btn" style="padding:3px 8px; font-size:11px;" onclick="speakDriverSituationBriefing()">
-                📢 Read Situation
+                📢 Situation
               </button>
             </div>
           </div>
@@ -796,33 +1395,50 @@
         </div>
       </div>
 
-      <div class="legend">
-        <span><i style="background:var(--open)"></i>Open</span>
-        <span><i style="background:var(--risk)"></i>At Risk (&ge;35%)</span>
-        <span><i style="background:var(--blocked)"></i>Blocked (&ge;70%)</span>
-        <span><i style="background:#38bdf8"></i>Primary Selected Route</span>
-        <span><i style="background:#facc15"></i>Alternate Bypass Route</span>
-        <span><i style="background:#10b981; border:1px solid #fff; border-radius:50%; width:8px; height:8px;"></i>Live Driver Marker</span>
+      <!-- Map Legend -->
+      <div class="map-legend">
+        <span class="map-legend-item"><i class="map-legend-line" style="background:var(--open)"></i> Safe &amp; Open</span>
+        <span class="map-legend-item"><i class="map-legend-line" style="background:var(--risk)"></i> Caution (&ge;35% risk)</span>
+        <span class="map-legend-item"><i class="map-legend-line" style="background:var(--blocked)"></i> Blocked (&ge;70% risk)</span>
+        <span class="map-legend-item"><i class="map-legend-line" style="background:#38bdf8"></i> Recommended Primary</span>
+        <span class="map-legend-item"><i class="map-legend-line" style="background:#facc15"></i> Alternate Bypass</span>
+        <span class="map-legend-item"><i style="background:#10b981; border:1px solid #fff; border-radius:50%; width:8px; height:8px; display:inline-block;"></i> Live Driver</span>
       </div>
-      <div class="hint" id="mapHint">
-        💡 <b>Click any two points on the map</b> (Origin, then Destination) or click any road on the map to inspect safety metrics and dispatch live tracking.
+
+      <div class="map-hint-bar" id="mapHint">
+        <span>💡</span>
+        <span><b>Click any two points on the map</b> (Origin, then Destination) or pick a 1-Click Popular Route above to calculate safety-weighted routes.</span>
       </div>
     </div>
 
-    <div class="side">
-      <!-- Road & Corridor Intelligence Inspector Card -->
+    <!-- Right Column: Tabbed Action & Intelligence Panel -->
+    <div class="side-panel-container">
+      
+      <!-- Side Tab Navigation -->
+      <div class="side-tabs-header">
+        <button type="button" class="side-tab-btn active" data-sidetab="sidetab-routes">
+          🛣️ Route Planner
+        </button>
+        <button type="button" class="side-tab-btn" data-sidetab="sidetab-network">
+          📊 Regional Health
+        </button>
+        <button type="button" class="side-tab-btn" data-sidetab="sidetab-consignments">
+          🚛 Consignments &amp; News
+        </button>
+      </div>
+
+      <!-- Selected Road Inspector Card (Floats when road is clicked) -->
       <div class="card" id="cardRoadInspector" style="display:none;">
-        <h2 style="background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.3);">
-          🔍 Selected Road Corridor Intelligence
-          <span class="spacer"></span>
+        <div class="card-head" style="background:rgba(59,130,246,0.12); border-color:rgba(59,130,246,0.3);">
+          <span>🔍 Selected Corridor Intelligence</span>
           <button type="button" style="padding:2px 8px; font-size:11px;" onclick="closeRoadInspector()">✕</button>
-        </h2>
+        </div>
         <div class="road-inspector-card">
-          <div class="inspector-header">
-            <div class="inspector-title" id="inspRoadName">NH-6 (GS Road Highway)</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-size:13px; font-weight:800; color:#fff;" id="inspRoadName">NH-6 (GS Road Highway)</div>
             <span class="badge b-open" id="inspRiskBadge">12% Risk &middot; Open</span>
           </div>
-          <div style="font-size:12px; color:var(--muted); margin-bottom:8px;" id="inspSub">State: Meghalaya &middot; Type: Primary Trunk</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;" id="inspSub">State: Meghalaya &middot; Type: Primary Trunk</div>
           
           <div class="inspector-grid">
             <div class="inspector-cell">
@@ -843,8 +1459,8 @@
             </div>
           </div>
 
-          <!-- Ground Truth & Verified Disaster News Box -->
-          <div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid var(--line);">
+          <!-- Verified Ground Truth Box -->
+          <div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.3); border-radius:var(--radius-sm); border:1px solid var(--border);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
               <span style="font-size:10px; font-weight:700; color:#93c5fd; text-transform:uppercase;">📰 Ground Truth &amp; Disaster News</span>
               <span class="badge b-open" id="inspNewsSource" style="font-size:9px;">🟢 SDMA Verified</span>
@@ -854,97 +1470,178 @@
             </div>
             <div style="display:flex; gap:6px;">
               <button type="button" class="hud-btn" style="padding:3px 8px; font-size:11px;" onclick="verifySelectedCorridorNews()">🔄 Cross-Check News</button>
-              <button type="button" class="btn-ticker-voice" style="padding:3px 8px; font-size:11px;" onclick="speakSelectedCorridorNews()">🔊 Listen Report</button>
+              <button type="button" class="btn-ticker-voice" style="padding:3px 8px; font-size:11px;" onclick="speakSelectedCorridorNews()">🔊 Listen</button>
             </div>
           </div>
 
           <div style="display:flex; gap:8px; margin-top:12px;">
-            <button type="button" class="primary" style="flex:1; padding:6px 10px; font-size:12px;" id="btnSetAsOrigin">📍 Set Origin</button>
-            <button type="button" class="primary" style="flex:1; padding:6px 10px; font-size:12px;" id="btnSetAsDest">🏁 Set Destination</button>
+            <button type="button" class="primary" style="flex:1; padding:7px 10px; font-size:12px;" id="btnSetAsOrigin">📍 Set as Origin</button>
+            <button type="button" class="primary" style="flex:1; padding:7px 10px; font-size:12px;" id="btnSetAsDest">🏁 Set as Destination</button>
           </div>
         </div>
       </div>
 
-      <!-- Real-Time Disaster & Highway News Card -->
-      <div class="card">
-        <h2>
-          🚨 Real-Time Disaster &amp; Highway News
-          <span class="spacer"></span>
-          <button type="button" class="btn-ticker-voice" style="padding:2px 8px; font-size:10px;" onclick="speakAllNewsSummary()">🔊 Read All</button>
-        </h2>
-        <div class="scroll" id="newsFeedList" style="max-height:220px;">
-          <div class="hint">Loading verified disaster bulletins...</div>
-        </div>
-      </div>
+      <!-- Side Tab 1: Route Planner & Dispatch -->
+      <div class="side-tab-pane active" id="sidetab-routes">
+        <!-- Quick City Route Finder -->
+        <div class="card">
+          <div class="card-head">
+            <span style="display:flex; align-items:center; gap:6px;">🧭 <b>City Route Planner</b></span>
+            <span style="font-size:11px; color:var(--text-muted);">Safe Highway Router</span>
+          </div>
+          <div style="padding:14px 16px;">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div>
+                <label style="display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px; letter-spacing:0.4px;">
+                  📍 Origin Hub
+                </label>
+                <select id="selCityOrigin" style="width:100%; padding:8px 12px; font-size:12px; font-weight:600;">
+                  <option value="26.1820,91.7480" selected>Guwahati (Assam Hub)</option>
+                  <option value="25.5788,91.8933">Shillong (Meghalaya)</option>
+                  <option value="24.8333,92.7789">Silchar (Barak Valley)</option>
+                  <option value="23.7271,92.7176">Aizawl (Mizoram)</option>
+                  <option value="25.9064,93.7273">Dimapur (Commercial Hub)</option>
+                  <option value="25.6701,94.1077">Kohima (Nagaland)</option>
+                  <option value="24.8170,93.9368">Imphal (Manipur)</option>
+                  <option value="26.7509,94.2037">Jorhat (Upper Assam)</option>
+                  <option value="27.0844,93.6053">Itanagar (Arunachal)</option>
+                  <option value="27.3389,88.6065">Gangtok (Sikkim)</option>
+                  <option value="23.8315,91.2868">Agartala (Tripura)</option>
+                  <option value="26.6528,92.7926">Tezpur (Sonitpur)</option>
+                  <option value="27.4728,94.9120">Dibrugarh (Assam)</option>
+                </select>
+              </div>
 
-      <!-- Route Planner Card -->
-      <div class="card">
-        <h2>
-          🛣️ Planned Corridors
-          <span class="spacer"></span>
-          <button id="btnClearRoute" style="padding:4px 10px;font-size:11px;">Clear</button>
-        </h2>
-        <div style="padding:10px 14px; background:rgba(0,0,0,0.18); border-bottom:1px solid var(--line);">
-          <div style="font-size:11px; font-weight:700; color:var(--muted); margin-bottom:6px; text-transform:uppercase;">1-Click Quick Corridors:</div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button type="button" class="corridor-chip" onclick="setQuickRoute(26.1820, 91.7480, 25.5788, 91.8933, 'Guwahati → Shillong')">Guwahati → Shillong (NH-6)</button>
-            <button type="button" class="corridor-chip" onclick="setQuickRoute(24.8333, 92.7789, 23.7271, 92.7176, 'Silchar → Aizawl')">Silchar → Aizawl (NH-306)</button>
-            <button type="button" class="corridor-chip" onclick="setQuickRoute(25.9064, 93.7273, 25.6701, 94.1077, 'Dimapur → Kohima')">Dimapur → Kohima (NH-29)</button>
-            <button type="button" class="corridor-chip" onclick="setQuickRoute(26.7509, 94.2037, 27.0844, 93.6053, 'Jorhat → Itanagar')">Jorhat → Itanagar (NH-715)</button>
-            <button type="button" class="corridor-chip" onclick="setQuickRoute(27.3389, 88.6065, 27.5089, 88.5289, 'Gangtok → Mangan')">Gangtok → Mangan (NH-10)</button>
+              <div style="display:flex; justify-content:center; margin:-4px 0;">
+                <button type="button" id="btnSwapCities" title="Swap Origin and Destination" style="padding:3px 10px; font-size:11px; border-radius:var(--radius-full); background:var(--bg-subtle);">
+                  ⇅ Swap Cities
+                </button>
+              </div>
+
+              <div>
+                <label style="display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px; letter-spacing:0.4px;">
+                  🏁 Destination Depot
+                </label>
+                <select id="selCityDest" style="width:100%; padding:8px 12px; font-size:12px; font-weight:600;">
+                  <option value="26.1820,91.7480">Guwahati (Assam Hub)</option>
+                  <option value="25.5788,91.8933" selected>Shillong (Meghalaya)</option>
+                  <option value="24.8333,92.7789">Silchar (Barak Valley)</option>
+                  <option value="23.7271,92.7176">Aizawl (Mizoram)</option>
+                  <option value="25.9064,93.7273">Dimapur (Commercial Hub)</option>
+                  <option value="25.6701,94.1077">Kohima (Nagaland)</option>
+                  <option value="24.8170,93.9368">Imphal (Manipur)</option>
+                  <option value="26.7509,94.2037">Jorhat (Upper Assam)</option>
+                  <option value="27.0844,93.6053">Itanagar (Arunachal)</option>
+                  <option value="27.3389,88.6065">Gangtok (Sikkim)</option>
+                  <option value="23.8315,91.2868">Agartala (Tripura)</option>
+                  <option value="26.6528,92.7926">Tezpur (Sonitpur)</option>
+                  <option value="27.4728,94.9120">Dibrugarh (Assam)</option>
+                </select>
+              </div>
+
+              <div style="display:flex; gap:8px; margin-top:4px;">
+                <button type="button" class="primary" id="btnCalculateCityRoute" style="flex:1; padding:9px 12px; font-size:13px; font-weight:700;">
+                  ⚡ Find Safe Routes
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        <div id="routes">
-          <div class="hint">Click a Quick Corridor above or tap any 2 points on the map.</div>
+
+        <!-- Planned Route Options List -->
+        <div class="card">
+          <div class="card-head">
+            <span>🛣️ Planned Route Options</span>
+            <button id="btnClearRoute" style="padding:3px 8px; font-size:11px;">Clear</button>
+          </div>
+          <div id="routes">
+            <div class="hint">Select origin &amp; destination above, click a 1-Click Popular Route, or click 2 points on the map.</div>
+          </div>
         </div>
       </div>
 
-      <!-- District Connectivity -->
-      <div class="card">
-        <h2>📊 State Connectivity Index</h2>
-        <div class="scroll"><table id="tblDistricts">
-          <thead><tr><th>State</th><th>Open</th><th>Risk</th><th>Blocked</th><th>Connectivity</th></tr></thead>
-          <tbody></tbody>
-        </table></div>
+      <!-- Side Tab 2: Regional Network Health & Critical Corridors -->
+      <div class="side-tab-pane" id="sidetab-network">
+        <!-- State Connectivity -->
+        <div class="card">
+          <div class="card-head">
+            <span>📊 State Connectivity Index</span>
+          </div>
+          <div class="scroll-box">
+            <table id="tblDistricts">
+              <thead><tr><th>State</th><th>Open</th><th>At Risk</th><th>Blocked</th><th>Connectivity</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- High-Risk Corridors -->
+        <div class="card">
+          <div class="card-head">
+            <span>⚠️ High-Risk Corridors</span>
+            <select id="selLang" style="padding:3px 8px; font-size:11px;">
+              <option value="en">English</option>
+              <option value="hi">हिन्दी</option>
+              <option value="as">অসমীয়া</option>
+              <option value="bn">বাংলা</option>
+              <option value="ne">नेपाली</option>
+              <option value="mni">Meitei</option>
+            </select>
+          </div>
+          <div class="scroll-box">
+            <table id="tblCorridors">
+              <thead><tr><th>Road</th><th>State</th><th>km</th><th>Risk</th><th>Hazard Reason</th><th>Status</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <!-- High-risk corridors -->
-      <div class="card">
-        <h2>
-          ⚠️ Critical Road Corridors
-          <span class="spacer"></span>
-          <select id="selLang" style="padding:4px 8px; font-size:11px;">
-            <option value="en">English</option><option value="hi">हिन्दी</option>
-            <option value="as">অসমীয়া</option><option value="bn">বাংলা</option>
-            <option value="ne">नेपाली</option><option value="mni">Meitei</option>
-          </select>
-        </h2>
-        <div class="scroll"><table id="tblCorridors">
-          <thead><tr><th>Road</th><th>State</th><th>km</th><th>Risk</th><th>Blockage Reason / Cause</th><th>Status</th></tr></thead>
-          <tbody></tbody>
-        </table></div>
+      <!-- Side Tab 3: Active Consignments & News -->
+      <div class="side-tab-pane" id="sidetab-consignments">
+        <!-- Active Shipments -->
+        <div class="card">
+          <div class="card-head">
+            <span>🚛 Essential Supply Consignments</span>
+            <button type="button" class="primary" style="padding:3px 8px; font-size:11px;" onclick="openDispatchModalDirect()">
+              + New Consignment
+            </button>
+          </div>
+          <div class="scroll-box">
+            <table id="tblShips">
+              <thead><tr><th>ID</th><th>Cargo</th><th>To</th><th>ETA</th><th>Status</th><th>Track</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Real-Time Disaster News Feed -->
+        <div class="card">
+          <div class="card-head">
+            <span>🚨 Live Ground Disaster Bulletins</span>
+            <button type="button" class="btn-ticker-voice" style="padding:2px 8px; font-size:10px;" onclick="speakAllNewsSummary()">
+              🔊 Read All
+            </button>
+          </div>
+          <div class="scroll-box" id="newsFeedList" style="max-height:220px;">
+            <div class="hint">Loading verified disaster bulletins...</div>
+          </div>
+        </div>
+
+        <!-- Live Disaster Alerts -->
+        <div class="card">
+          <div class="card-head">
+            <span>🚨 Active Disruption Alerts</span>
+          </div>
+          <div class="scroll-box" id="alerts">
+            <div class="hint">No active alerts at this time.</div>
+          </div>
+        </div>
       </div>
 
-      <!-- Live alerts -->
-      <div class="card">
-        <h2>🚨 Live Disaster &amp; Blockage Alerts</h2>
-        <div class="scroll" id="alerts"><div class="hint">No alerts yet.</div></div>
-      </div>
-
-      <!-- Active Consignments -->
-      <div class="card">
-        <h2>
-          🚛 Essential Supply Consignments
-          <span class="spacer"></span>
-          <button type="button" class="primary" style="padding:3px 8px; font-size:11px;" onclick="openDispatchModalDirect()">+ New Consignment</button>
-        </h2>
-        <div class="scroll"><table id="tblShips">
-          <thead><tr><th>ID</th><th>Cargo</th><th>To</th><th>ETA</th><th>Status</th><th>Track</th></tr></thead>
-          <tbody></tbody>
-        </table></div>
-      </div>
     </div>
   </div>
+
   <div id="status"></div>
 </div>
 
@@ -953,11 +1650,11 @@
   <div class="modal-box">
     <div class="modal-head">
       <h3>📦 Confirm Consignment Dispatch &amp; Live Tracking</h3>
-      <button type="button" style="background:transparent; border:none; color:var(--muted); font-size:18px; cursor:pointer;" onclick="closeDispatchModal()">✕</button>
+      <button type="button" style="background:transparent; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;" onclick="closeDispatchModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div style="background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:12px; padding:12px; margin-bottom:14px;">
-        <div style="font-size:12px; font-weight:700; color:#93c5fd; margin-bottom:4px;">🗺️ Selected Road Corridor &amp; Navigation Summary:</div>
+      <div style="background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:var(--radius-md); padding:12px; margin-bottom:14px;">
+        <div style="font-size:11px; font-weight:700; color:#93c5fd; text-transform:uppercase; margin-bottom:4px;">🗺️ Selected Route Corridor:</div>
         <div id="modalRouteSummary" style="font-size:13px; font-weight:600; color:#fff;">Guwahati → Shillong (NH-6) &middot; 98.4 km &middot; 110 min risk-adjusted</div>
       </div>
 
@@ -1020,7 +1717,7 @@
 <div id="tab-field" class="tab-content">
   <div class="frame-container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <span style="font-size:13px; color:var(--muted)">Offline-first field hazard observation &amp; photo tagging</span>
+      <span style="font-size:13px; color:var(--text-muted)">Offline-first field hazard observation &amp; AI photo verification</span>
       <a href="/field" target="_blank" style="font-size:13px; color:var(--accent); text-decoration:none; font-weight:600;">Open in Full Screen ↗</a>
     </div>
     <iframe src="/field" class="app-frame" title="Field Reporting App"></iframe>
@@ -1031,7 +1728,7 @@
 <div id="tab-driver" class="tab-content">
   <div class="frame-container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <span style="font-size:13px; color:var(--muted)">Driver Navigation with real-time AI Voice Assistant</span>
+      <span style="font-size:13px; color:var(--text-muted)">Driver Navigation Cockpit with real-time AI Voice Co-Pilot</span>
       <a href="/driver" target="_blank" style="font-size:13px; color:var(--accent); text-decoration:none; font-weight:600;">Open in Full Screen ↗</a>
     </div>
     <iframe src="/driver" class="app-frame" title="Driver Tracking App"></iframe>
@@ -1049,7 +1746,7 @@
     }).catch(e => console.warn('[PWA] SW notice:', e));
   }
 
-  // Tab switcher
+  // Main Top-Level Tab switcher
   document.querySelectorAll('.nav-tab[data-tab]').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -1060,6 +1757,17 @@
       if (tab.dataset.tab === 'tab-command' && window.map) {
         setTimeout(() => window.map.invalidateSize(), 150);
       }
+    });
+  });
+
+  // Right Side Panel Tab switcher
+  document.querySelectorAll('.side-tab-btn[data-sidetab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.side-tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const target = document.getElementById(btn.dataset.sidetab);
+      if (target) target.classList.add('active');
     });
   });
 </script>
