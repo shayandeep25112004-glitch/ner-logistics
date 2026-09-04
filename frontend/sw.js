@@ -10,9 +10,9 @@
  * 4. Background Sync: Auto-triggers IndexedDB sync on network reconnect.
  */
 
-const SHELL_CACHE = "ner-shell-v6";
-const DATA_CACHE = "ner-data-v6";
-const TILE_CACHE = "ner-tiles-v6";
+const SHELL_CACHE = "ner-shell-v7";
+const DATA_CACHE = "ner-data-v7";
+const TILE_CACHE = "ner-tiles-v7";
 
 const APP_SHELL = [
   "/",

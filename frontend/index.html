@@ -574,6 +574,133 @@
     margin-top: 2px;
   }
 
+  /* Active Disruption Alert Cards */
+  .alert-card {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+    border-left: 4px solid var(--blocked);
+  }
+  .alert-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  .alert-card.critical {
+    border-left-color: #ef4444;
+    background: rgba(239, 68, 68, 0.04);
+  }
+  .alert-card.high {
+    border-left-color: #f97316;
+    background: rgba(249, 115, 22, 0.04);
+  }
+  .alert-card.moderate {
+    border-left-color: #eab308;
+    background: rgba(234, 179, 8, 0.04);
+  }
+  .alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .alert-title {
+    font-weight: 800;
+    font-size: 12px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .alert-body {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin-bottom: 8px;
+  }
+  .alert-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+  .alert-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .alert-btn {
+    padding: 3px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .alert-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Filter pills for alerts */
+  .alert-filter-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .alert-filter-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    padding: 3px 9px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .alert-filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .alert-filter-btn.active {
+    background: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Custom Leaflet Pulsing Alert Marker */
+  .custom-alert-pin {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+    border: 2px solid #fff;
+    animation: alert-pulse 1.8s infinite;
+    cursor: pointer;
+  }
+  @keyframes alert-pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  }
+
   .guide-step-pills {
     display: flex;
     align-items: center;
@@ -1846,13 +1973,31 @@
           </div>
         </div>
 
-        <!-- Live Disaster Alerts -->
-        <div class="card">
+        <!-- Active Disruption Alert Dashboard -->
+        <div class="card" id="cardDisruptionAlerts">
           <div class="card-head">
-            <span>🚨 Active Disruption Alerts</span>
+            <span style="display:flex; align-items:center; gap:6px;">
+              <span>🚨</span>
+              <b>Active Disruption Alerts</b>
+              <span class="badge b-blocked" id="badgeAlertCount">25 Active</span>
+            </span>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn-ticker-voice" style="padding:2px 8px; font-size:10px;" onclick="speakTopDisruptionAlert()">
+                🔊 Read Alert
+              </button>
+            </div>
           </div>
-          <div class="scroll-box" id="alerts">
-            <div class="hint">No active alerts at this time.</div>
+          <div style="padding:10px 12px;">
+            <!-- Severity Filter Bar -->
+            <div class="alert-filter-bar" id="alertFilterBar">
+              <button type="button" class="alert-filter-btn active" data-filter="all" onclick="filterDisruptionAlerts('all')">All (<span id="cntAlertAll">25</span>)</button>
+              <button type="button" class="alert-filter-btn" data-filter="critical" onclick="filterDisruptionAlerts('critical')">🔴 Critical (<span id="cntAlertCrit">24</span>)</button>
+              <button type="button" class="alert-filter-btn" data-filter="high" onclick="filterDisruptionAlerts('high')">🟠 High (<span id="cntAlertHigh">0</span>)</button>
+              <button type="button" class="alert-filter-btn" data-filter="moderate" onclick="filterDisruptionAlerts('moderate')">🟡 Moderate (<span id="cntAlertMod">1</span>)</button>
+            </div>
+            <div class="scroll-box" id="alerts" style="max-height:280px;">
+              <div class="hint">Loading verified disruption alerts...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -2083,12 +2228,12 @@
 </div>
 
 <script src="/static/vendor/leaflet.js"></script>
-<script src="/static/idb.js?v=6.0"></script>
-<script src="/static/app.js?v=6.0"></script>
+<script src="/static/idb.js?v=7.0"></script>
+<script src="/static/app.js?v=7.0"></script>
 <script>
   // Service Worker Registration with auto-update
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=6.0').then((reg) => {
+    navigator.serviceWorker.register('/sw.js?v=7.0').then((reg) => {
       reg.update();
     }).catch(e => console.warn('[PWA] SW notice:', e));
   }

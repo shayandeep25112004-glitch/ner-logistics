@@ -13,7 +13,7 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 const COLOUR = { open: "#2ecc71", at_risk: "#f5a623", blocked: "#ff4d4f" };
 const SEV = { low: "b-open", moderate: "b-risk", high: "b-blocked", critical: "b-critical" };
 
-let map, edgeLayer, routeLayers = [], originMarker = null, destMarker = null;
+let map, edgeLayer, alertLayer = null, routeLayers = [], originMarker = null, destMarker = null;
 let routeMode = false, origin = null, destination = null;
 let state = { risk: 0, stateFilter: "" };
 
@@ -92,6 +92,7 @@ function initMap() {
     attribution: '&copy; OpenStreetMap contributors | risk model: NER-LAIP',
   }).addTo(map);
   edgeLayer = L.layerGroup().addTo(map);
+  alertLayer = L.layerGroup().addTo(map);
   map.on("click", onMapClick);
 }
 
@@ -472,17 +473,25 @@ function renderCorridors(d) {
   ).join("");
 }
 
+let rawAlertsList = [];
+let currentAlertFilter = "all";
+
 async function loadAlerts() {
   try {
-    const res = await fetch(`${API}/api/alerts?limit=25`);
+    const res = await fetch(`${API}/api/alerts?limit=50`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const d = await res.json();
+    rawAlertsList = d.alerts || [];
     if (d && window.nerDB) window.nerDB.setCache("alerts", d);
     renderAlerts(d);
   } catch (err) {
     if (window.nerDB) {
       const cached = await window.nerDB.getCache("alerts");
-      if (cached) { renderAlerts(cached); return; }
+      if (cached) {
+        rawAlertsList = cached.alerts || [];
+        renderAlerts(cached);
+        return;
+      }
     }
     console.warn("Alerts loading bypassed:", err);
   }
@@ -491,14 +500,167 @@ async function loadAlerts() {
 function renderAlerts(d) {
   const el = $("#alerts");
   if (!el) return;
-  if (!d.alerts || !d.alerts.length) { el.innerHTML = '<div class="hint">No active alerts at this time.</div>'; return; }
-  el.innerHTML = d.alerts.map((a) =>
-    `<div class="alert">
-       <div class="t">${a.title} <span class="badge ${SEV[a.severity] || "b-risk"}">${a.severity}</span></div>
-       <div class="m">${a.body}</div>
-       <div class="ts">${a.created_at.replace("T", " ")}</div>
-     </div>`).join("");
+  const alerts = rawAlertsList;
+  if (!alerts || !alerts.length) {
+    el.innerHTML = '<div class="hint">No active disruption alerts at this time. All corridors open.</div>';
+    const badge = $("#badgeAlertCount");
+    if (badge) badge.textContent = "0 Active";
+    return;
+  }
+
+  // 1. Update counter badges
+  const cntAll = alerts.length;
+  const cntCrit = alerts.filter(a => a.severity === "critical").length;
+  const cntHigh = alerts.filter(a => a.severity === "high").length;
+  const cntMod = alerts.filter(a => a.severity === "moderate" || a.severity === "low").length;
+
+  const elAll = $("#cntAlertAll"); if (elAll) elAll.textContent = cntAll;
+  const elCrit = $("#cntAlertCrit"); if (elCrit) elCrit.textContent = cntCrit;
+  const elHigh = $("#cntAlertHigh"); if (elHigh) elHigh.textContent = cntHigh;
+  const elMod = $("#cntAlertMod"); if (elMod) elMod.textContent = cntMod;
+  const badgeCount = $("#badgeAlertCount");
+  if (badgeCount) {
+    badgeCount.textContent = `${cntAll} Active`;
+    badgeCount.className = `badge ${cntCrit > 0 ? 'b-blocked' : cntHigh > 0 ? 'b-risk' : 'b-open'}`;
+  }
+
+  // 2. Filter alerts
+  let filtered = alerts;
+  if (currentAlertFilter === "critical") {
+    filtered = alerts.filter(a => a.severity === "critical");
+  } else if (currentAlertFilter === "high") {
+    filtered = alerts.filter(a => a.severity === "high");
+  } else if (currentAlertFilter === "moderate") {
+    filtered = alerts.filter(a => a.severity === "moderate" || a.severity === "low");
+  }
+
+  // 3. Plot disruption pins on Leaflet Map
+  if (alertLayer) {
+    alertLayer.clearLayers();
+    alerts.forEach((a) => {
+      if (a.lat && a.lon) {
+        const pinIcon = L.divIcon({
+          className: "custom-alert-pin-container",
+          html: `<div class="custom-alert-pin" title="${a.title}">${a.severity === 'critical' ? '🚨' : '⚠️'}</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+        const marker = L.marker([a.lat, a.lon], { icon: pinIcon }).addTo(alertLayer);
+        marker.bindPopup(`
+          <div style="min-width:210px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-weight:800;font-size:12.5px;color:#ef4444;">🚨 ${a.title}</span>
+              <span class="badge ${a.severity === 'critical' ? 'b-blocked' : 'b-risk'}">${a.severity.toUpperCase()}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text);line-height:1.4;margin-bottom:6px;">${a.body}</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">Reported: ${a.created_at.replace("T", " ").slice(0, 16)}</div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="primary" style="padding:3px 8px;font-size:11px;" onclick="calculateDetourForAlert(${a.lat}, ${a.lon}, '${a.title.replace(/'/g, "\\'")}')">⚡ Calculate Detour</button>
+            </div>
+          </div>
+        `);
+      }
+    });
+  }
+
+  // 4. Render interactive alert cards
+  if (!filtered.length) {
+    el.innerHTML = `<div class="hint">No alerts found under "${currentAlertFilter}" filter.</div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map((a) => {
+    const sevClass = a.severity || "moderate";
+    const dateFormatted = a.created_at ? a.created_at.replace("T", " ").slice(0, 16) : "";
+    const riskPct = Math.round((a.risk || 1.0) * 100);
+    return `
+      <div class="alert-card ${sevClass}">
+        <div class="alert-header">
+          <div class="alert-title">
+            <span>${a.severity === 'critical' ? '🚨' : '⚠️'}</span>
+            <span>${a.title}</span>
+            <span class="badge" style="font-size:9.5px;background:var(--bg-subtle);color:var(--text);border:1px solid var(--border);">${a.state || 'NER'}</span>
+          </div>
+          <span class="badge ${a.severity === 'critical' ? 'b-blocked' : a.severity === 'high' ? 'b-risk' : 'b-open'}">${a.severity.toUpperCase()}</span>
+        </div>
+        <div class="alert-body">
+          ${a.body}
+        </div>
+        <div class="alert-footer">
+          <span>📅 ${dateFormatted} &middot; Risk: <b>${riskPct}%</b></span>
+          <div class="alert-actions">
+            <button type="button" class="alert-btn" onclick="focusAlertOnMap(${a.lat}, ${a.lon}, '${a.title.replace(/'/g, "\\'")}', '${a.body.replace(/'/g, "\\'")}', '${a.severity}')" title="Zoom to alert location on GIS map">
+              📍 Map
+            </button>
+            <button type="button" class="alert-btn" onclick="speakAlertCard('${(a.title + '. ' + a.body).replace(/'/g, "\\'")}')" title="Listen to voice warning">
+              🔊 Listen
+            </button>
+            <button type="button" class="alert-btn primary" style="background:var(--accent);color:#fff;border-color:var(--accent);" onclick="calculateDetourForAlert(${a.lat}, ${a.lon}, '${a.title.replace(/'/g, "\\'")}')" title="Find alternate road route">
+              ⚡ Detour
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
 }
+
+window.filterDisruptionAlerts = function(filterType) {
+  currentAlertFilter = filterType;
+  document.querySelectorAll(".alert-filter-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.filter === filterType);
+  });
+  renderAlerts({ alerts: rawAlertsList });
+};
+
+window.focusAlertOnMap = function(lat, lon, title, body, severity) {
+  if (!lat || !lon) return;
+  if (window.map) {
+    map.flyTo([lat, lon], 12, { duration: 1.2 });
+    setTimeout(() => {
+      L.popup({ offset: [0, -10] })
+        .setLatLng([lat, lon])
+        .setContent(`
+          <div style="min-width:210px;">
+            <div style="font-weight:800;font-size:13px;color:#ef4444;margin-bottom:4px;">🚨 ${title}</div>
+            <div style="font-size:11px;color:var(--text);line-height:1.4;margin-bottom:8px;">${body}</div>
+            <button type="button" class="primary" style="padding:3px 8px;font-size:11px;" onclick="calculateDetourForAlert(${lat}, ${lon}, '${title.replace(/'/g, "\\'")}')">⚡ Calculate Detour</button>
+          </div>
+        `)
+        .openOn(map);
+    }, 1300);
+  }
+};
+
+window.calculateDetourForAlert = function(lat, lon, title) {
+  activateSideTab("sidetab-routes");
+  origin = [26.1820, 91.7480]; // Guwahati Hub or current location
+  currentOriginName = "Guwahati (Assam Hub)";
+  destination = [lat, lon];
+  currentDestName = title.replace("Road blocked: ", "");
+  
+  if (originMarker) map.removeLayer(originMarker);
+  if (destMarker) map.removeLayer(destMarker);
+  
+  originMarker = L.circleMarker(origin, { color: "#4da3ff", fillColor: "#4da3ff", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Origin: Guwahati Hub");
+  destMarker = L.circleMarker(destination, { color: "#ff4d4f", fillColor: "#ff4d4f", fillOpacity: 1, radius: 8 }).addTo(map).bindPopup("Obstruction Zone: " + currentDestName).openPopup();
+  
+  planRoute();
+};
+
+window.speakTopDisruptionAlert = function() {
+  if (!rawAlertsList.length) {
+    speakText("No active road disruption alerts reported at this time.", voiceEngine.lang, false);
+    return;
+  }
+  const top = rawAlertsList[0];
+  const speech = `High priority disruption alert: ${top.title}. ${top.body}`;
+  speakText(speech, voiceEngine.lang, true);
+};
+
+window.speakAlertCard = function(text) {
+  speakText(text, voiceEngine.lang, false);
+};
 
 async function loadShipments() {
   try {
