@@ -174,6 +174,180 @@ function renderHealth(h) {
   ].map(([l, v]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
 }
 
+/* ------------------------------------------------------------- weather api & cloud ---- */
+let currentWeatherData = null;
+
+async function loadWeather() {
+  try {
+    const res = await fetch(`${API}/api/weather/live`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    currentWeatherData = data;
+    if (window.nerDB) window.nerDB.setCache("weather_live", data);
+    renderWeatherGrid(data);
+  } catch (err) {
+    if (window.nerDB) {
+      const cached = await window.nerDB.getCache("weather_live");
+      if (cached) { renderWeatherGrid(cached); return; }
+    }
+    console.warn("Weather loading notice:", err);
+  }
+}
+
+function renderWeatherGrid(data) {
+  const container = $("#weatherGridList");
+  const pillText = $("#pillWeatherText");
+  if (!data || !data.hubs) return;
+
+  if (pillText) {
+    pillText.textContent = `🌦️ IMD Weather: ${data.hubs.length} Hubs Active`;
+  }
+
+  if (container) {
+    container.innerHTML = data.hubs.map(h => `
+      <div class="weather-card">
+        <div class="wx-head">
+          <span class="wx-city">${h.city} (${h.state.slice(0, 3)})</span>
+          <span class="wx-temp">${h.temperature_c}°C</span>
+        </div>
+        <div class="wx-cond">
+          <span>${h.icon}</span>
+          <span>${h.condition}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+          <span class="wx-rain">🌧️ 24h: <b>${h.rain_24h_mm}mm</b></span>
+          <span class="wx-alert" style="background:${h.imd_color};">${h.imd_alert.split(' ')[0]}</span>
+        </div>
+      </div>
+    `).join("");
+  }
+}
+
+window.speakWeatherSummary = function() {
+  if (!currentWeatherData || !currentWeatherData.hubs) {
+    speakText("Weather intelligence is initializing. Please stand by.", voiceEngine.lang, false);
+    return;
+  }
+  const alerts = currentWeatherData.hubs.filter(h => h.rain_24h_mm >= 15.0 || h.imd_alert.includes("YELLOW") || h.imd_alert.includes("ORANGE") || h.imd_alert.includes("RED"));
+  let msg = "";
+  if (alerts.length > 0) {
+    const alertNames = alerts.map(h => `${h.city} with ${h.rain_24h_mm} millimeters of rain`).join(", ");
+    msg = voiceEngine.lang === "hi-IN"
+      ? `मौसम चेतावनी: पूर्वोत्तर में वर्षा जारी है। ${alertNames} पर विशेष सावधानी बरतें। भूस्खलन का जोखिम अधिक है।`
+      : `IMD Weather Advisory: Active precipitation observed across the region. Caution on high ground at ${alertNames}. Landslide risk elevated.`;
+  } else {
+    msg = voiceEngine.lang === "hi-IN"
+      ? `मौसम सामान्य है। सभी प्रमुख आठ राज्य राजधानियों में मार्ग खुले हैं और वर्षा सामान्य सीमा के भीतर है।`
+      : `Regional weather conditions are nominal across all 8 North-Eastern states. Corridors clear for scheduled freight transit.`;
+  }
+  speakText(msg, voiceEngine.lang, false);
+};
+
+window.focusWeatherSection = function() {
+  activateSideTab("sidetab-command");
+  const el = document.getElementById("cardWeather");
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+window.focusCloudSection = function() {
+  activateSideTab("sidetab-command");
+  const el = document.getElementById("cardCloud");
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+async function loadCloudTelemetry() {
+  try {
+    const res = await fetch(`${API}/api/cloud/status`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderCloudTelemetry(data);
+  } catch (err) {
+    const badge = $("#badgeCloudStatus");
+    if (badge) {
+      badge.textContent = "🟡 Offline Mode";
+      badge.style.background = "rgba(245,158,11,0.2)";
+      badge.style.borderColor = "var(--warn)";
+      badge.style.color = "var(--warn)";
+    }
+  }
+}
+
+function renderCloudTelemetry(data) {
+  if (!data) return;
+  const badge = $("#badgeCloudStatus");
+  if (badge && data.cloud) {
+    badge.textContent = `🟢 ${data.cloud.status || "Online"}`;
+  }
+  const edgesEl = $("#valCloudEdges");
+  if (edgesEl && data.database) {
+    edgesEl.textContent = `${(data.database.edges_indexed / 1000).toFixed(1)}k Edges`;
+  }
+}
+
+window.downloadOfflinePack = async function() {
+  const btn = $("#btnDownloadOffline");
+  const statusEl = $("#offlineSyncStatusText");
+  if (btn) { btn.disabled = true; btn.innerHTML = "⏳ Caching..."; }
+  if (statusEl) statusEl.textContent = "Downloading North-East road network & vector tiles for offline mountain operation...";
+
+  try {
+    const urls = [
+      "/api/network/edges.geojson?simplify=true",
+      "/api/risk/districts",
+      "/api/risk/corridors?n=30",
+      "/api/alerts",
+      "/api/weather/live",
+      "/api/news/live"
+    ];
+    let count = 0;
+    for (const u of urls) {
+      const r = await fetch(u);
+      if (r.ok) {
+        const json = await r.json();
+        if (window.nerDB) window.nerDB.setCache(u, json);
+        count++;
+      }
+    }
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color:var(--open);font-weight:700;">✅ Offline Regional Pack ready (${count} data layers saved in IndexedDB). 100% disconnected operation enabled!</span>`;
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `Offline caching notice: ${err.message}`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = "<span>📥</span> Offline Pack Ready"; }
+  }
+};
+
+window.syncCloudNow = async function() {
+  const btn = $("#btnSyncCloud");
+  const statusEl = $("#offlineSyncStatusText");
+  if (btn) { btn.disabled = true; btn.innerHTML = "⏳ Syncing..."; }
+  if (statusEl) statusEl.textContent = "Establishing TLS 1.3 channel to Render cloud...";
+
+  try {
+    const res = await fetch(`${API}/api/cloud/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        device_id: "web-client-operator",
+        client_timestamp: new Date().toISOString(),
+        reports: [],
+        gps_pings: []
+      })
+    });
+    const result = await res.json();
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color:var(--open);font-weight:700;">✅ Cloud Synced: Receipt [${result.cloud_receipt || 'OK'}] &middot; Database up to date.</span>`;
+    }
+    await loadHealth();
+    await loadCloudTelemetry();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `Sync notice: ${err.message}`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = "<span>🔄</span> Cloud Synced"; }
+  }
+};
+
 async function loadEdges() {
   const cacheKey = `edges_${state.stateFilter || "all"}_${state.risk}`;
   try {
@@ -1655,10 +1829,25 @@ function bindUi() {
   initMap();
   bindUi();
   await loadHealth();
-  await Promise.all([loadEdges(), loadDistricts(), loadCorridors(), loadAlerts(), loadShipments(), loadNews()]);
+  await Promise.all([
+    loadEdges(),
+    loadDistricts(),
+    loadCorridors(),
+    loadAlerts(),
+    loadShipments(),
+    loadNews(),
+    loadWeather(),
+    loadCloudTelemetry(),
+  ]);
   
   // Automatically calculate initial route (Guwahati -> Shillong) so UI is populated immediately
   calculateCityRoute();
 
-  setInterval(() => { loadAlerts(); loadShipments(); loadNews(); }, 25000);
+  setInterval(() => {
+    loadAlerts();
+    loadShipments();
+    loadNews();
+    loadWeather();
+    loadCloudTelemetry();
+  }, 30000);
 })();

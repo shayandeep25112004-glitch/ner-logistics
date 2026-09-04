@@ -33,6 +33,16 @@ from services.news import (
     add_disaster_news,
     init_news_schema,
 )
+from services.imd_client import (
+    get_regional_weather_overview,
+    get_weather_providers_info,
+    fetch_forecast_open_meteo,
+)
+from services.cloud_security import (
+    get_cloud_infrastructure_status,
+    process_cloud_sync,
+    CloudSyncPayload,
+)
 
 try:
     from routing.router import get_router, haversine_km
@@ -86,6 +96,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 # --------------------------------------------------------------------------- #
@@ -755,6 +776,49 @@ def api_submit_disaster_news(item: DisasterNewsItem):
     res = add_disaster_news(item.model_dump())
     refresh_risk_scores()
     return res
+
+
+# --------------------------------------------------------------------------- #
+# Weather API Integration Endpoints
+# --------------------------------------------------------------------------- #
+@app.get("/api/weather/live")
+def api_get_live_weather():
+    """Retrieve live weather conditions across the 8 North-Eastern states with IMD classification."""
+    return get_regional_weather_overview()
+
+
+@app.get("/api/weather/providers")
+def api_get_weather_providers():
+    """Retrieve metadata about integrated weather APIs (IMD, Open-Meteo, NCMRWF)."""
+    return get_weather_providers_info()
+
+
+@app.get("/api/weather/corridor")
+def api_get_corridor_weather(lat: float = Query(...), lon: float = Query(...)):
+    """Query real-time precipitation forecast for any corridor coordinate."""
+    forecast = fetch_forecast_open_meteo([(lat, lon)])
+    item = forecast[0] if forecast else {"rain_24h": 0.0, "rain_72h": 0.0, "max_intensity": 0.0}
+    return {
+        "lat": lat,
+        "lon": lon,
+        "forecast": item,
+        "source": "Open-Meteo ECMWF / IMD Integration",
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Cloud Infrastructure & Secure Offline Sync Endpoints
+# --------------------------------------------------------------------------- #
+@app.get("/api/cloud/status")
+def api_get_cloud_status():
+    """Real-time cloud infrastructure health, data encryption, and offline telemetry."""
+    return get_cloud_infrastructure_status()
+
+
+@app.post("/api/cloud/sync")
+def api_process_cloud_sync(payload: CloudSyncPayload):
+    """Secure batch sync endpoint for offline field clients with SHA-256 HMAC verification."""
+    return process_cloud_sync(payload)
 
 
 if __name__ == "__main__":
